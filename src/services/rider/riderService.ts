@@ -29,7 +29,7 @@ function phoneToAuthEmail(phone: string): string {
     canonicalDigits = phone.replace(/\D/g, '');
   }
 
-  return `rider_${canonicalDigits}@okadabook.local`;
+  return `rider_${canonicalDigits}@okadabook.com`;
 }
 
 export const riderService = {
