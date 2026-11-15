@@ -61,4 +61,5 @@ export interface SubmitOrderResponse {
   createdAt?: string;
   message?: string;
   error?: string;
+  isQueuedOffline?: boolean;
 }

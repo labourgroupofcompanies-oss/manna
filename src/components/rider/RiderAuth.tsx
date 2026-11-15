@@ -327,17 +327,17 @@ export const RiderAuth: React.FC<RiderAuthProps> = ({ onAuthSuccess }) => {
               />
             </div>
 
-            <div className="form-group">
+            <div className="form-group colour-group">
               <label htmlFor="reg-colour" className="form-label">
                 Motorcycle Colour
               </label>
               <input
                 id="reg-colour"
                 type="text"
-                placeholder="e.g. Black / Red"
+                placeholder="e.g. Black"
                 value={regBikeColour}
                 onChange={(e) => setRegBikeColour(e.target.value)}
-                className="input-control"
+                className="input-control colour-input-compact"
               />
             </div>
           </div>

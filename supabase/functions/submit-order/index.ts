@@ -126,6 +126,7 @@ serve(async (req: Request) => {
     let orderType = '';
     let orderDescription: string | null = null;
     let audioFile: File | Blob | null = null;
+    let voiceRecordingPath: string | null = null;
 
     const contentType = req.headers.get('content-type') || '';
 
@@ -136,11 +137,13 @@ serve(async (req: Request) => {
       orderType = (formData.get('orderType') as string) || '';
       orderDescription = (formData.get('orderDescription') as string) || (formData.get('description') as string) || null;
       audioFile = (formData.get('audioFile') as File) || (formData.get('audio') as File) || null;
+      voiceRecordingPath = (formData.get('voiceRecordingPath') as string) || null;
     } else if (contentType.includes('application/json')) {
       const json = await req.json();
       customerPhone = json.customerPhone || json.phone || '';
       orderType = json.orderType || '';
       orderDescription = json.orderDescription || json.description || null;
+      voiceRecordingPath = json.voiceRecordingPath || null;
     } else {
       return new Response(
         JSON.stringify({ success: false, error: 'Unsupported Content-Type. Use multipart/form-data.' }),
@@ -205,60 +208,71 @@ serve(async (req: Request) => {
       }
       orderDescription = orderDescription.trim();
     } else if (orderType === 'voice') {
-      if (!audioFile) {
+      if (!voiceRecordingPath && !audioFile) {
         return new Response(
           JSON.stringify({ success: false, error: 'Voice orders require an audio recording file.' }),
           { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }
 
-      // Validate File Size
-      if (audioFile.size === 0) {
-        return new Response(
-          JSON.stringify({ success: false, error: 'Audio recording is empty. Please record your request.' }),
-          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
-      }
-      if (audioFile.size > MAX_AUDIO_SIZE_BYTES) {
-        return new Response(
-          JSON.stringify({ success: false, error: 'Audio recording exceeds the 10MB maximum limit.' }),
-          { status: 413, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
-      }
+      // If client pre-uploaded directly via TUS/direct storage
+      if (voiceRecordingPath) {
+        // Sanitize path: must start with 'orders/' and avoid directory traversal
+        if (!voiceRecordingPath.startsWith('orders/') || voiceRecordingPath.includes('..')) {
+          return new Response(
+            JSON.stringify({ success: false, error: 'Invalid voice recording path provided.' }),
+            { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        }
+      } else if (audioFile) {
+        // Validate File Size
+        if (audioFile.size === 0) {
+          return new Response(
+            JSON.stringify({ success: false, error: 'Audio recording is empty. Please record your request.' }),
+            { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        }
+        if (audioFile.size > MAX_AUDIO_SIZE_BYTES) {
+          return new Response(
+            JSON.stringify({ success: false, error: 'Audio recording exceeds the 10MB maximum limit.' }),
+            { status: 413, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        }
 
-      // Validate MIME type
-      const fileMime = audioFile.type.toLowerCase();
-      const isAllowedMime = ALLOWED_AUDIO_TYPES.some((allowed) => fileMime.startsWith(allowed.split(';')[0]));
-      if (!isAllowedMime && fileMime !== 'application/octet-stream') {
-        return new Response(
-          JSON.stringify({
-            success: false,
-            error: `Unsupported audio format "${fileMime}". Supported formats: WebM, MP4, OGG, MP3, WAV.`
-          }),
-          { status: 415, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
-      }
+        // Validate MIME type
+        const fileMime = audioFile.type.toLowerCase();
+        const isAllowedMime = ALLOWED_AUDIO_TYPES.some((allowed) => fileMime.startsWith(allowed.split(';')[0]));
+        if (!isAllowedMime && fileMime !== 'application/octet-stream') {
+          return new Response(
+            JSON.stringify({
+              success: false,
+              error: `Unsupported audio format "${fileMime}". Supported formats: WebM, MP4, OGG, MP3, WAV.`
+            }),
+            { status: 415, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        }
 
-      // Generate Unique Storage Path
-      const orderUUID = crypto.randomUUID();
-      const fileExt = fileMime.includes('mp4') ? 'mp4' : fileMime.includes('ogg') ? 'ogg' : fileMime.includes('wav') ? 'wav' : 'webm';
-      voiceRecordingPath = `orders/${orderUUID}/voice_${Date.now()}.${fileExt}`;
+        // Generate Unique Storage Path
+        const orderUUID = crypto.randomUUID();
+        const fileExt = fileMime.includes('mp4') ? 'mp4' : fileMime.includes('ogg') ? 'ogg' : fileMime.includes('wav') ? 'wav' : 'webm';
+        voiceRecordingPath = `orders/${orderUUID}/voice_${Date.now()}.${fileExt}`;
 
-      // Upload to Private Bucket 'order-recordings'
-      const audioBytes = await audioFile.arrayBuffer();
-      const { error: uploadError } = await supabaseAdmin.storage
-        .from('order-recordings')
-        .upload(voiceRecordingPath, audioBytes, {
-          contentType: fileMime || 'audio/webm',
-          upsert: false
-        });
+        // Upload to Private Bucket 'order-recordings'
+        const audioBytes = await audioFile.arrayBuffer();
+        const { error: uploadError } = await supabaseAdmin.storage
+          .from('order-recordings')
+          .upload(voiceRecordingPath, audioBytes, {
+            contentType: fileMime || 'audio/webm',
+            upsert: false
+          });
 
-      if (uploadError) {
-        console.error('Failed to upload audio to private storage:', uploadError);
-        return new Response(
-          JSON.stringify({ success: false, error: 'Failed to upload voice note. Please try again.' }),
-          { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
+        if (uploadError) {
+          console.error('Failed to upload audio to private storage:', uploadError);
+          return new Response(
+            JSON.stringify({ success: false, error: 'Failed to upload voice note. Please try again.' }),
+            { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        }
       }
     }
 
@@ -310,7 +324,25 @@ serve(async (req: Request) => {
       );
     }
 
-    // 7. Return Clean Sanitized Response
+    // 7. Coordinate with order_media table
+    if (voiceRecordingPath) {
+      try {
+        await supabaseAdmin.from('order_media').upsert({
+          order_id: insertedOrder.id,
+          bucket_id: 'order-recordings',
+          storage_path: voiceRecordingPath,
+          mime_type: audioFile?.type || 'audio/webm',
+          file_size_bytes: audioFile?.size || 0,
+          media_type: 'voice_recording',
+          upload_status: 'completed',
+          upload_method: audioFile ? 'standard' : 'tus_resumable'
+        }, { onConflict: 'storage_path' });
+      } catch (mediaErr) {
+        console.warn('Could not record order_media metadata:', mediaErr);
+      }
+    }
+
+    // 8. Return Clean Sanitized Response
     return new Response(
       JSON.stringify({
         success: true,

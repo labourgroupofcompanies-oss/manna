@@ -1,5 +1,6 @@
 import { supabase, isSupabaseConfigured } from '../supabase';
 import { validateGhanaPhone } from '../../utils';
+import { mediaUploadManager } from '../storage/mediaUploadManager';
 import type {
   RiderProfile,
   RiderRegistrationPayload,
@@ -117,15 +118,10 @@ export const riderService = {
 
       if (payload.profilePhotoFile) {
         try {
-          const fileExt = (payload.profilePhotoFile as File).name?.split('.').pop() || 'jpg';
-          const filePath = `${user.id}/avatar_${Date.now()}.${fileExt}`;
-          const { error: uploadErr } = await supabase.storage
-            .from('rider-profiles')
-            .upload(filePath, payload.profilePhotoFile, { upsert: true });
-
-          if (!uploadErr) {
-            profilePhotoPath = filePath;
-            const { data: pubUrl } = supabase.storage.from('rider-profiles').getPublicUrl(filePath);
+          const uploadRes = await mediaUploadManager.uploadRiderProfilePhoto(payload.profilePhotoFile, user.id);
+          if (uploadRes.success && uploadRes.storagePath) {
+            profilePhotoPath = uploadRes.storagePath;
+            const { data: pubUrl } = supabase.storage.from('rider-profiles').getPublicUrl(uploadRes.storagePath);
             profilePhotoUrl = pubUrl.publicUrl;
           }
         } catch {

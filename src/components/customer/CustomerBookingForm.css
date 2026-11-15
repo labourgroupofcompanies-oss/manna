@@ -409,3 +409,73 @@
   font-weight: 700;
   letter-spacing: 0.05em;
 }
+
+/* Upload Progress Box */
+.upload-progress-box {
+  background-color: #F0F7FF;
+  border: 1.5px solid #BFDBFE;
+  border-radius: clamp(12px, 2.5vw, 16px);
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.upload-progress-labels {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #1E40AF;
+}
+
+.upload-progress-track {
+  width: 100%;
+  height: 8px;
+  background-color: #DBEAFE;
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.upload-progress-bar {
+  height: 100%;
+  background: linear-gradient(90deg, #0B57D0, #2563EB);
+  border-radius: 999px;
+  transition: width 0.25s ease-out;
+}
+
+/* Offline Queue Banner */
+.offline-queue-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  background-color: #FFFBEB;
+  border: 1.5px solid #FCD34D;
+  color: #92400E;
+  padding: 10px 14px;
+  border-radius: clamp(12px, 2.5vw, 16px);
+  font-size: 0.85rem;
+}
+
+.offline-queue-info {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.btn-sync-offline {
+  background-color: #D97706;
+  color: #FFFFFF;
+  border: none;
+  padding: 5px 12px;
+  border-radius: var(--radius-full);
+  font-size: 0.78rem;
+  font-weight: 700;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.btn-sync-offline:hover {
+  background-color: #B45309;
+}

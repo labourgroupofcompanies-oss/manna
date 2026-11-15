@@ -1,7 +1,9 @@
-import React, { useState, useId } from 'react';
+import React, { useState, useId, useEffect } from 'react';
 import { useVoiceRecorder } from '../../hooks';
 import { validateGhanaPhone } from '../../utils';
 import { orderService } from '../../services';
+import { mediaUploadManager } from '../../services/storage/mediaUploadManager';
+import { offlineMediaQueue, type QueuedUploadItem } from '../../services/storage/offlineMediaQueue';
 import { VoiceRecorder } from '../voice/VoiceRecorder';
 import type { Order } from '../../types';
 import './CustomerBookingForm.css';
@@ -23,10 +25,32 @@ export const CustomerBookingForm: React.FC = () => {
   // Voice recording hook
   const voiceRecorder = useVoiceRecorder();
 
-  // Submission & Backend states
+  // Submission & Transfer states
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [uploadPercentage, setUploadPercentage] = useState<number | null>(null);
   const [submissionError, setSubmissionError] = useState<string | null>(null);
   const [submittedOrder, setSubmittedOrder] = useState<Order | null>(null);
+  const [offlineNotice, setOfflineNotice] = useState<string | null>(null);
+  const [pendingOfflineItems, setPendingOfflineItems] = useState<QueuedUploadItem[]>([]);
+  const [isSyncingOffline, setIsSyncingOffline] = useState(false);
+
+  // Subscribe to offline queue changes
+  useEffect(() => {
+    const unsubscribe = offlineMediaQueue.subscribe((items) => {
+      setPendingOfflineItems(items);
+    });
+    return unsubscribe;
+  }, []);
+
+  const handleSyncOffline = async () => {
+    if (isSyncingOffline) return;
+    setIsSyncingOffline(true);
+    try {
+      await mediaUploadManager.syncOfflineQueue();
+    } finally {
+      setIsSyncingOffline(false);
+    }
+  };
 
   // Validation
   const phoneValidation = validateGhanaPhone(phone);
@@ -55,15 +79,31 @@ export const CustomerBookingForm: React.FC = () => {
 
     setIsSubmitting(true);
     setSubmissionError(null);
+    setOfflineNotice(null);
+    setUploadPercentage(null);
 
     try {
-      const response = await orderService.submitOrder({
-        customerPhone: phoneValidation.formatted || phone.trim(),
-        orderType: orderMode === 'type' ? 'text' : 'voice',
-        orderDescription: orderMode === 'type' ? textRequest.trim() : undefined,
-        audioFile: orderMode === 'voice' && voiceRecorder.audioBlob ? voiceRecorder.audioBlob : undefined,
-        durationSeconds: voiceRecorder.recordingDuration
-      });
+      const response = await orderService.submitOrder(
+        {
+          customerPhone: phoneValidation.formatted || phone.trim(),
+          orderType: orderMode === 'type' ? 'text' : 'voice',
+          orderDescription: orderMode === 'type' ? textRequest.trim() : undefined,
+          audioFile: orderMode === 'voice' && voiceRecorder.audioBlob ? voiceRecorder.audioBlob : undefined,
+          durationSeconds: voiceRecorder.recordingDuration
+        },
+        ({ percentage }) => {
+          setUploadPercentage(percentage);
+        }
+      );
+
+      // Handle queued offline state
+      if (response.isQueuedOffline) {
+        setOfflineNotice(
+          response.message ||
+            'Your order has been safely saved on your device and will dispatch automatically once internet connection is restored.'
+        );
+        return;
+      }
 
       if (!response.success || !response.orderReference) {
         setSubmissionError(response.error || 'Failed to submit order. Please try again.');
@@ -95,6 +135,7 @@ export const CustomerBookingForm: React.FC = () => {
       setSubmissionError(error.message || 'An unexpected error occurred while submitting your order.');
     } finally {
       setIsSubmitting(false);
+      setUploadPercentage(null);
     }
   };
 
@@ -318,6 +359,37 @@ export const CustomerBookingForm: React.FC = () => {
             )}
           </div>
 
+          {/* Offline Sync Banner if pending uploads exist */}
+          {pendingOfflineItems.length > 0 && (
+            <div className="offline-queue-banner" role="status">
+              <div className="offline-queue-info">
+                <span>📡</span>
+                <span>
+                  <strong>{pendingOfflineItems.length} order{pendingOfflineItems.length > 1 ? 's' : ''}</strong> queued offline
+                </span>
+              </div>
+              <button
+                type="button"
+                className="btn-sync-offline"
+                onClick={handleSyncOffline}
+                disabled={isSyncingOffline}
+              >
+                {isSyncingOffline ? 'Syncing...' : 'Sync Now'}
+              </button>
+            </div>
+          )}
+
+          {/* Offline Saved Notice */}
+          {offlineNotice && (
+            <div className="submission-error-alert" style={{ backgroundColor: '#ECFDF5', borderColor: '#34D399', color: '#065F46' }} role="status">
+              <span className="error-alert-icon" aria-hidden="true">💾</span>
+              <div className="error-alert-content">
+                <strong style={{ color: '#065F46' }}>Saved Offline</strong>
+                <p style={{ color: '#047857' }}>{offlineNotice}</p>
+              </div>
+            </div>
+          )}
+
           {/* Submission Error Banner */}
           {submissionError && (
             <div className="submission-error-alert" role="alert">
@@ -325,6 +397,22 @@ export const CustomerBookingForm: React.FC = () => {
               <div className="error-alert-content">
                 <strong>Submission Issue</strong>
                 <p>{submissionError}</p>
+              </div>
+            </div>
+          )}
+
+          {/* Live Upload Progress Indicator */}
+          {isSubmitting && uploadPercentage !== null && (
+            <div className="upload-progress-box" aria-live="polite">
+              <div className="upload-progress-labels">
+                <span>Uploading voice note...</span>
+                <span>{uploadPercentage}%</span>
+              </div>
+              <div className="upload-progress-track">
+                <div
+                  className="upload-progress-bar"
+                  style={{ width: `${uploadPercentage}%` }}
+                />
               </div>
             </div>
           )}
@@ -354,7 +442,13 @@ export const CustomerBookingForm: React.FC = () => {
               </span>
 
               <span className="order-btn-label">
-                {isSubmitting ? 'Submitting Order...' : 'Order Ride'}
+                {isSubmitting
+                  ? uploadPercentage !== null
+                    ? `Uploading (${uploadPercentage}%)...`
+                    : 'Submitting Order...'
+                  : submissionError
+                  ? 'Retry Order'
+                  : 'Order Ride'}
               </span>
 
               {/* Right Chevron Arrow */}

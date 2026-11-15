@@ -1,5 +1,6 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
 import type { VoiceRecordingState } from '../types';
+import { getPreferredAudioMimeType, MAX_AUDIO_DURATION_SECONDS } from '../utils/audioOptimizer';
 
 export interface UseVoiceRecorderReturn extends VoiceRecordingState {
   startRecording: () => Promise<void>;
@@ -90,14 +91,7 @@ export const useVoiceRecorder = (): UseVoiceRecorderReturn => {
       streamRef.current = stream;
 
       // Select supported audio mimeType
-      let mimeType = '';
-      if (MediaRecorder.isTypeSupported('audio/webm;codecs=opus')) {
-        mimeType = 'audio/webm;codecs=opus';
-      } else if (MediaRecorder.isTypeSupported('audio/mp4')) {
-        mimeType = 'audio/mp4';
-      } else if (MediaRecorder.isTypeSupported('audio/ogg;codecs=opus')) {
-        mimeType = 'audio/ogg;codecs=opus';
-      }
+      const mimeType = getPreferredAudioMimeType();
 
       const recorder = mimeType ? new MediaRecorder(stream, { mimeType }) : new MediaRecorder(stream);
       mediaRecorderRef.current = recorder;
@@ -149,10 +143,29 @@ export const useVoiceRecorder = (): UseVoiceRecorderReturn => {
 
       recorder.start(250); // collect chunks every 250ms
 
-      // Start duration counter
+      // Start duration counter with 90s auto-stop
       const startTime = Date.now();
       timerIntervalRef.current = window.setInterval(() => {
         const elapsed = Math.floor((Date.now() - startTime) / 1000);
+        if (elapsed >= MAX_AUDIO_DURATION_SECONDS) {
+          if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'recording') {
+            try {
+              mediaRecorderRef.current.stop();
+            } catch {
+              // ignore
+            }
+          }
+          if (timerIntervalRef.current !== null) {
+            clearInterval(timerIntervalRef.current);
+            timerIntervalRef.current = null;
+          }
+          setState((prev) => ({
+            ...prev,
+            recordingDuration: MAX_AUDIO_DURATION_SECONDS
+          }));
+          return;
+        }
+
         setState((prev) => ({
           ...prev,
           recordingDuration: elapsed
