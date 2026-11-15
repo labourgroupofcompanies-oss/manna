@@ -8,6 +8,11 @@
   background-color: #063A9B;
   box-shadow: 0 10px 40px rgba(6, 58, 155, 0.12);
   position: relative;
+  transition: background-color 0.2s ease;
+}
+
+.mobile-shell.rider-view {
+  background-color: #F5F8FF;
 }
 
 @media (min-width: 640px) {

@@ -10,14 +10,3 @@ export interface UserProfile {
   role: UserRole;
   createdAt: string;
 }
-
-export interface RiderProfile extends UserProfile {
-  role: 'rider';
-  isAvailable: boolean;
-  motorcycleNumberPlate?: string;
-  currentLocation?: {
-    latitude: number;
-    longitude: number;
-    updatedAt: string;
-  };
-}

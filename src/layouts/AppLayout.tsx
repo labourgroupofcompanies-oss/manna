@@ -13,7 +13,7 @@ export const AppLayout: React.FC<AppLayoutProps> = ({
   onTabChange
 }) => {
   return (
-    <div className="app-container mobile-shell">
+    <div className={`app-container mobile-shell ${activeTab === 'rider' ? 'rider-view' : ''}`}>
       {/* Main Content Area */}
       <main className="app-main-clean">
         {children}

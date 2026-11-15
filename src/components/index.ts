@@ -3,6 +3,8 @@ export * from './common/Card';
 export * from './common/Input';
 export * from './customer/CustomerBookingForm';
 export * from './customer/CustomerRequestPlaceholder';
+export * from './rider/RiderAuth';
+export * from './rider/RiderDashboard';
 export * from './rider/RiderDashboardPlaceholder';
 export * from './admin/AdminOverviewPlaceholder';
 export * from './orders/OrderListPlaceholder';
