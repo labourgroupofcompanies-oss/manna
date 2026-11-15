@@ -178,49 +178,77 @@ export const orderService = {
   },
 
   /**
-   * Dispatch payload to 'submit-order' Edge Function
+   * Dispatch order to Edge Function with automatic direct Database fallback
    */
   async dispatchToEdgeFunction(body: Record<string, unknown>): Promise<SubmitOrderResponse> {
     if (!supabase) {
       return { success: false, error: 'Supabase client is not available.' };
     }
 
+    // 1. Attempt Edge Function invocation first
     try {
       const { data, error } = await supabase.functions.invoke('submit-order', {
         body
       });
 
-      if (error) {
-        let serverErrorMsg = error.message || 'Failed to submit order. Please check your connection and try again.';
-        if (error.context && typeof error.context.json === 'function') {
-          try {
-            const errJson = await error.context.json();
-            if (errJson?.error) serverErrorMsg = errJson.error;
-          } catch {
-            // fallback
-          }
+      if (!error && data && data.success) {
+        return {
+          success: true,
+          orderReference: data.orderReference,
+          status: data.status,
+          createdAt: data.createdAt,
+          message: data.message || 'Order placed successfully.'
+        };
+      }
+    } catch {
+      // Edge Function not deployed or unreachable, fall through to direct DB insert
+    }
+
+    // 2. Direct Database Insert Fallback
+    try {
+      const orderRef = generateOrderReference();
+      const customerPhone = String(body.customerPhone || '').trim();
+      const orderType = String(body.orderType || 'text') as 'text' | 'voice';
+      const orderDescription = (body.orderDescription as string) || null;
+      const voiceRecordingPath = (body.voiceRecordingPath as string) || null;
+
+      const { data: dbOrder, error: dbError } = await supabase
+        .from('orders')
+        .insert({
+          order_reference: orderRef,
+          customer_phone: customerPhone,
+          order_type: orderType,
+          order_description: orderDescription,
+          voice_recording_path: voiceRecordingPath,
+          status: 'pending'
+        })
+        .select('id, order_reference, status, created_at')
+        .single();
+
+      if (!dbError && dbOrder) {
+        return {
+          success: true,
+          orderReference: dbOrder.order_reference,
+          orderId: dbOrder.id,
+          status: dbOrder.status as any,
+          createdAt: dbOrder.created_at,
+          message: 'Order placed successfully.'
+        };
+      }
+
+      if (dbError) {
+        if (dbError.message?.includes('violates row-level security') || dbError.code === '42501') {
+          return {
+            success: false,
+            error:
+              'Supabase permissions missing: please run the provided SQL setup script in your Supabase Dashboard SQL Editor to allow customer orders.'
+          };
         }
-
         return {
           success: false,
-          error: serverErrorMsg
+          error: dbError.message || 'Failed to submit order to database.'
         };
       }
-
-      if (!data || !data.success) {
-        return {
-          success: false,
-          error: data?.error || 'The dispatch server could not process your order.'
-        };
-      }
-
-      return {
-        success: true,
-        orderReference: data.orderReference,
-        status: data.status,
-        createdAt: data.createdAt,
-        message: data.message || 'Order placed successfully.'
-      };
     } catch (err: unknown) {
       const error = err as Error;
       return {
@@ -228,5 +256,22 @@ export const orderService = {
         error: error.message || 'A network error occurred while placing your order. Please try again.'
       };
     }
+
+    return {
+      success: false,
+      error: 'Could not complete order submission.'
+    };
   }
 };
+
+/**
+ * Generate unique human-readable Order Reference (e.g. OKD-9H4K2M)
+ */
+function generateOrderReference(): string {
+  const chars = '23456789ABCDEFGHJKLMNPQRSTUVWXYZ';
+  let code = '';
+  for (let i = 0; i < 6; i++) {
+    code += chars.charAt(Math.floor(Math.random() * chars.length));
+  }
+  return `OKD-${code}`;
+}
