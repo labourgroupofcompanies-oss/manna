@@ -10,11 +10,11 @@
   overflow-x: hidden;
 }
 
-/* 1. Top Hero Section with Logo & Rider */
+/* 1. Top Hero Section with Logo & Rider (No phone status bar) */
 .okada-hero-banner {
   width: 100%;
-  aspect-ratio: 682 / 325;
-  background: url('/hero-design.jpg') no-repeat top center;
+  aspect-ratio: 682 / 270;
+  background: url('/hero-banner.jpg') no-repeat top center;
   background-size: 100% auto;
   position: relative;
   flex-shrink: 0;
@@ -25,7 +25,7 @@
   background-color: #FFFFFF;
   border-top-left-radius: 36px;
   border-top-right-radius: 36px;
-  margin-top: -32px;
+  margin-top: -30px;
   position: relative;
   z-index: 10;
   display: flex;
@@ -336,8 +336,8 @@
 /* E. Accra Skyline Footer */
 .accra-skyline-footer {
   width: 100%;
-  height: 68px;
-  background: url('/hero-design.jpg') no-repeat bottom center;
+  height: 64px;
+  background: url('/accra-skyline.png') no-repeat bottom center;
   background-size: 100% auto;
   margin-top: 10px;
   margin-left: -20px;
