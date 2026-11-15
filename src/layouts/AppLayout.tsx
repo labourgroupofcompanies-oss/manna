@@ -13,53 +13,38 @@ export const AppLayout: React.FC<AppLayoutProps> = ({
   onTabChange
 }) => {
   return (
-    <div className="app-container">
-      {/* Brand Header */}
-      <header className="app-header">
-        <div className="brand-badge">
-          <div className="brand-logo-circle" aria-label="Okada Book Logo">🏍️</div>
-          <div>
-            <h1 className="brand-title">Okada Book</h1>
-            <p className="brand-subtitle">Ride Easy... Get There Fast!</p>
-          </div>
-        </div>
-        <span className="pwa-badge">Ghana</span>
-      </header>
-
-      {/* Role Switcher Navigation (Preserved for future stages) */}
-      <nav className="role-nav" aria-label="Role Navigation">
-        <button
-          type="button"
-          className={`role-tab ${activeTab === 'customer' ? 'active' : ''}`}
-          onClick={() => onTabChange?.('customer')}
-        >
-          Customer
-        </button>
-        <button
-          type="button"
-          className={`role-tab ${activeTab === 'rider' ? 'active' : ''}`}
-          onClick={() => onTabChange?.('rider')}
-        >
-          Rider
-        </button>
-        <button
-          type="button"
-          className={`role-tab ${activeTab === 'admin' ? 'active' : ''}`}
-          onClick={() => onTabChange?.('admin')}
-        >
-          Admin
-        </button>
-      </nav>
-
+    <div className="app-container mobile-shell">
       {/* Main Content Area */}
-      <main className="app-main">
+      <main className="app-main-clean">
         {children}
       </main>
 
-      {/* Footer */}
-      <footer className="app-footer">
-        <p>Okada Book &copy; {new Date().getFullYear()} &bull; Ride Easy... Get There Fast!</p>
-      </footer>
+      {/* Discreet Development / Preview Role Switcher */}
+      {onTabChange && (
+        <aside className="dev-role-switcher" aria-label="Development Stage Switcher">
+          <button
+            type="button"
+            className={`dev-tab-btn ${activeTab === 'customer' ? 'active' : ''}`}
+            onClick={() => onTabChange('customer')}
+          >
+            Customer
+          </button>
+          <button
+            type="button"
+            className={`dev-tab-btn ${activeTab === 'rider' ? 'active' : ''}`}
+            onClick={() => onTabChange('rider')}
+          >
+            Rider
+          </button>
+          <button
+            type="button"
+            className={`dev-tab-btn ${activeTab === 'admin' ? 'active' : ''}`}
+            onClick={() => onTabChange('admin')}
+          >
+            Admin
+          </button>
+        </aside>
+      )}
     </div>
   );
 };
