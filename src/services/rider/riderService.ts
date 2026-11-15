@@ -10,12 +10,25 @@ import type {
 } from '../../types';
 
 /**
- * Format phone number into internal unique Supabase Auth identifier
- * Lightweight & affordable: uses native Supabase Auth password encryption without paid SMS gateway
+ * Standardize Ghanaian phone number into canonical auth email identifier.
+ * Ensures that "+233 24 566 0622", "0245660622", and "024-566-0622"
+ * all resolve to the exact same deterministic authentication email.
  */
 function phoneToAuthEmail(phone: string): string {
-  const digits = phone.replace(/\D/g, '');
-  return `rider_${digits}@okadabook.local`;
+  const check = validateGhanaPhone(phone);
+  let canonicalDigits = '';
+
+  if (check.isValid && check.formatted) {
+    // Standardized 10 digits (e.g. 0245660622)
+    canonicalDigits = check.formatted.replace(/\D/g, '');
+    if (canonicalDigits.startsWith('233')) {
+      canonicalDigits = '0' + canonicalDigits.slice(3);
+    }
+  } else {
+    canonicalDigits = phone.replace(/\D/g, '');
+  }
+
+  return `rider_${canonicalDigits}@okadabook.local`;
 }
 
 export const riderService = {
@@ -337,7 +350,7 @@ export const riderService = {
     if (!isSupabaseConfigured || !supabase) return [];
 
     try {
-      // 1. Try secure RPC function (omits phone numbers)
+      // 1. Try secure RPC function (omits phone numbers, verifies rider is online)
       const { data: rpcData, error: rpcError } = await supabase.rpc('get_available_orders');
 
       if (!rpcError && Array.isArray(rpcData)) {
@@ -356,6 +369,7 @@ export const riderService = {
         .from('orders')
         .select('id, order_reference, order_type, order_description, voice_recording_path, created_at')
         .eq('status', 'pending')
+        .is('rider_id', null)
         .order('created_at', { ascending: false })
         .limit(25);
 
@@ -376,18 +390,19 @@ export const riderService = {
 
   /**
    * Fetch orders currently assigned to this rider
+   * Uses resolved rider.id (public.riders.id)
    */
   async getActiveOrders(): Promise<ActiveRiderOrder[]> {
     if (!isSupabaseConfigured || !supabase) return [];
 
     try {
-      const { data: userData } = await supabase.auth.getUser();
-      if (!userData?.user) return [];
+      const rider = await this.getCurrentRider();
+      if (!rider) return [];
 
       const { data, error } = await supabase
         .from('orders')
         .select('*')
-        .eq('rider_id', userData.user.id)
+        .eq('rider_id', rider.id)
         .eq('status', 'accepted')
         .order('accepted_at', { ascending: false });
 
@@ -418,7 +433,7 @@ export const riderService = {
     }
 
     try {
-      // 1. Invoke atomic accept_order RPC
+      // Invoke atomic accept_order RPC
       const { data, error } = await supabase.rpc('accept_order', {
         p_order_id: orderId
       });
@@ -484,6 +499,7 @@ export const riderService = {
 
   /**
    * Get metrics for today's rides
+   * Uses resolved rider.id (public.riders.id)
    */
   async getTodayMetrics(): Promise<RiderMetrics> {
     if (!isSupabaseConfigured || !supabase) {
@@ -491,8 +507,8 @@ export const riderService = {
     }
 
     try {
-      const { data: userData } = await supabase.auth.getUser();
-      if (!userData?.user) return { todayCompletedCount: 0, todayAcceptedCount: 0 };
+      const rider = await this.getCurrentRider();
+      if (!rider) return { todayCompletedCount: 0, todayAcceptedCount: 0 };
 
       const todayStart = new Date();
       todayStart.setHours(0, 0, 0, 0);
@@ -500,14 +516,14 @@ export const riderService = {
       const { data: completedData } = await supabase
         .from('orders')
         .select('id')
-        .eq('rider_id', userData.user.id)
+        .eq('rider_id', rider.id)
         .eq('status', 'completed')
         .gte('created_at', todayStart.toISOString());
 
       const { data: activeData } = await supabase
         .from('orders')
         .select('id')
-        .eq('rider_id', userData.user.id)
+        .eq('rider_id', rider.id)
         .eq('status', 'accepted');
 
       return {
