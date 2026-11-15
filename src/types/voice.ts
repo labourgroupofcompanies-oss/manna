@@ -8,4 +8,5 @@ export interface VoiceRecordingState {
   audioBlob: Blob | null;
   audioUrl: string | null;
   error: string | null;
+  isSupported?: boolean;
 }

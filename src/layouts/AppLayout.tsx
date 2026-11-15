@@ -17,16 +17,16 @@ export const AppLayout: React.FC<AppLayoutProps> = ({
       {/* Brand Header */}
       <header className="app-header">
         <div className="brand-badge">
-          <div className="brand-logo-circle">🏍️</div>
+          <div className="brand-logo-circle" aria-label="Okada Book Logo">🏍️</div>
           <div>
             <h1 className="brand-title">Okada Book</h1>
-            <p className="brand-subtitle">Quick rides across Ghana</p>
+            <p className="brand-subtitle">Ride Easy... Get There Fast!</p>
           </div>
         </div>
-        <span className="pwa-badge">PWA Ready</span>
+        <span className="pwa-badge">Ghana</span>
       </header>
 
-      {/* Role Switcher Navigation (Preview / Environment setup) */}
+      {/* Role Switcher Navigation (Preserved for future stages) */}
       <nav className="role-nav" aria-label="Role Navigation">
         <button
           type="button"
@@ -58,7 +58,7 @@ export const AppLayout: React.FC<AppLayoutProps> = ({
 
       {/* Footer */}
       <footer className="app-footer">
-        <p>Okada Book &copy; {new Date().getFullYear()} &bull; Built for Ghana</p>
+        <p>Okada Book &copy; {new Date().getFullYear()} &bull; Ride Easy... Get There Fast!</p>
       </footer>
     </div>
   );
