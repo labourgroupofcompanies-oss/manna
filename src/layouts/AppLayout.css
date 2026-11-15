@@ -1,23 +1,25 @@
 .mobile-shell {
   width: 100%;
-  max-width: 440px;
+  max-width: 480px;
   margin: 0 auto;
   min-height: 100vh;
   display: flex;
   flex-direction: column;
   background-color: #063A9B;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
+  box-shadow: 0 10px 40px rgba(6, 58, 155, 0.12);
   position: relative;
-  overflow: hidden;
 }
 
 @media (min-width: 640px) {
+  body {
+    background-color: #E8EEF8;
+    padding: 1.5rem 0;
+  }
+
   .mobile-shell {
-    margin: 1.5rem auto;
-    border-radius: 36px;
-    min-height: 840px;
-    border: 8px solid #1E293B;
-    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.35);
+    border-radius: 32px;
+    box-shadow: 0 20px 45px rgba(6, 58, 155, 0.2);
+    overflow: hidden;
   }
 }
 
@@ -33,7 +35,7 @@
   display: flex;
   justify-content: center;
   gap: 8px;
-  padding: 8px 12px;
+  padding: 10px 16px;
   background-color: #0F172A;
   border-top: 1px solid #1E293B;
   z-index: 50;
@@ -44,8 +46,8 @@
   color: #94A3B8;
   border: 1px solid #334155;
   border-radius: 9999px;
-  padding: 4px 12px;
-  font-size: 0.72rem;
+  padding: 5px 14px;
+  font-size: 0.75rem;
   font-weight: 600;
   cursor: pointer;
   transition: all 0.15s ease;
