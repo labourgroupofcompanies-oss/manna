@@ -1,0 +1,14 @@
+# Supabase Configuration for Okada Book
+project_id = "okada-book"
+
+[api]
+port = 54321
+
+[db]
+port = 54322
+
+[storage]
+enabled = true
+
+[functions.submit-order]
+verify_jwt = false # Order submission is open to anonymous customers without login

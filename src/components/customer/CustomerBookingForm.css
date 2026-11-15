@@ -366,3 +366,46 @@
   justify-content: center;
   font-size: clamp(1.05rem, 3.2vw, 1.15rem);
 }
+
+
+/* Submission Error Alert */
+.submission-error-alert {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  background-color: #FEF2F2;
+  border: 1.5px solid #F87171;
+  color: #991B1B;
+  padding: 12px 16px;
+  border-radius: clamp(14px, 3vw, 18px);
+  font-size: clamp(0.85rem, 2.5vw, 0.95rem);
+  line-height: 1.4;
+  animation: slideDown 0.2s ease-out;
+}
+
+.error-alert-icon {
+  font-size: 1.25rem;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+.error-alert-content strong {
+  display: block;
+  font-weight: 700;
+  margin-bottom: 2px;
+}
+
+.error-alert-content p {
+  margin: 0;
+  color: #7F1D1D;
+}
+
+.status-badge-pending {
+  background-color: #FEF3C7;
+  color: #92400E;
+  padding: 2px 8px;
+  border-radius: var(--radius-sm);
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+}

@@ -1,6 +1,7 @@
 import React, { useState, useId } from 'react';
 import { useVoiceRecorder } from '../../hooks';
 import { validateGhanaPhone } from '../../utils';
+import { orderService } from '../../services';
 import { VoiceRecorder } from '../voice/VoiceRecorder';
 import type { Order } from '../../types';
 import './CustomerBookingForm.css';
@@ -22,8 +23,9 @@ export const CustomerBookingForm: React.FC = () => {
   // Voice recording hook
   const voiceRecorder = useVoiceRecorder();
 
-  // Form submission states
+  // Submission & Backend states
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submissionError, setSubmissionError] = useState<string | null>(null);
   const [submittedOrder, setSubmittedOrder] = useState<Order | null>(null);
 
   // Validation
@@ -33,31 +35,47 @@ export const CustomerBookingForm: React.FC = () => {
   const isOrderDetailsProvided =
     orderMode === 'type'
       ? textRequest.trim().length > 0
-      : Boolean(voiceRecorder.audioUrl) && !voiceRecorder.isRecording;
+      : Boolean(voiceRecorder.audioBlob) && !voiceRecorder.isRecording;
 
   const isFormValid = isPhoneValid && isOrderDetailsProvided;
 
   const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setPhone(e.target.value);
+    if (submissionError) setSubmissionError(null);
   };
 
   const handlePhoneBlur = () => {
     setPhoneTouched(true);
   };
 
+  // Handle Order Submission
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!isFormValid || isSubmitting) return;
 
     setIsSubmitting(true);
+    setSubmissionError(null);
 
     try {
-      // Simulate smooth order dispatch
-      await new Promise((resolve) => setTimeout(resolve, 800));
-
-      const newOrder: Order = {
-        id: `OKD-${Math.floor(100000 + Math.random() * 900000)}`,
+      const response = await orderService.submitOrder({
         customerPhone: phoneValidation.formatted || phone.trim(),
+        orderType: orderMode === 'type' ? 'text' : 'voice',
+        orderDescription: orderMode === 'type' ? textRequest.trim() : undefined,
+        audioFile: orderMode === 'voice' && voiceRecorder.audioBlob ? voiceRecorder.audioBlob : undefined,
+        durationSeconds: voiceRecorder.recordingDuration
+      });
+
+      if (!response.success || !response.orderReference) {
+        setSubmissionError(response.error || 'Failed to submit order. Please try again.');
+        return;
+      }
+
+      // Successful order confirmed by backend
+      const confirmedOrder: Order = {
+        id: response.orderId || response.orderReference,
+        orderReference: response.orderReference,
+        customerPhone: phoneValidation.formatted || phone.trim(),
+        orderType: orderMode === 'type' ? 'text' : 'voice',
         requestDescription: orderMode === 'type' ? textRequest.trim() : 'Voice Order Request',
         voiceNote:
           orderMode === 'voice' && voiceRecorder.audioUrl
@@ -66,12 +84,15 @@ export const CustomerBookingForm: React.FC = () => {
                 durationSeconds: voiceRecorder.recordingDuration
               }
             : undefined,
-        status: 'pending',
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString()
+        status: response.status || 'pending',
+        createdAt: response.createdAt || new Date().toISOString(),
+        updatedAt: response.createdAt || new Date().toISOString()
       };
 
-      setSubmittedOrder(newOrder);
+      setSubmittedOrder(confirmedOrder);
+    } catch (err: unknown) {
+      const error = err as Error;
+      setSubmissionError(error.message || 'An unexpected error occurred while submitting your order.');
     } finally {
       setIsSubmitting(false);
     }
@@ -80,6 +101,7 @@ export const CustomerBookingForm: React.FC = () => {
   const handleResetForNewRide = () => {
     setSubmittedOrder(null);
     setTextRequest('');
+    setSubmissionError(null);
     setPhoneTouched(false);
     voiceRecorder.resetRecording();
   };
@@ -93,13 +115,13 @@ export const CustomerBookingForm: React.FC = () => {
           <div className="success-icon-badge">✓</div>
           <h2 className="success-title">Ride Requested!</h2>
           <p className="success-subtitle">
-            Your Okada booking has been placed locally.
+            Your ride has been registered with Okada dispatch.
           </p>
 
           <div className="order-summary-box">
             <div className="summary-row">
               <span className="summary-label">Order Ref:</span>
-              <span className="summary-value order-id-pill">{submittedOrder.id}</span>
+              <span className="summary-value order-id-pill">{submittedOrder.orderReference}</span>
             </div>
             <div className="summary-row">
               <span className="summary-label">Contact:</span>
@@ -108,10 +130,16 @@ export const CustomerBookingForm: React.FC = () => {
             <div className="summary-row">
               <span className="summary-label">Order Method:</span>
               <span className="summary-value">
-                {submittedOrder.voiceNote ? '🎙️ Voice Note' : '📝 Type Order'}
+                {submittedOrder.orderType === 'voice' ? '🎙️ Voice Note' : '📝 Type Order'}
               </span>
             </div>
-            {submittedOrder.voiceNote ? (
+            <div className="summary-row">
+              <span className="summary-label">Status:</span>
+              <span className="summary-value status-badge-pending">
+                {submittedOrder.status.toUpperCase()}
+              </span>
+            </div>
+            {submittedOrder.orderType === 'voice' && submittedOrder.voiceNote?.audioUrl ? (
               <div className="summary-voice-preview">
                 <span className="summary-label">Audio Note:</span>
                 <audio
@@ -226,7 +254,10 @@ export const CustomerBookingForm: React.FC = () => {
                 role="tab"
                 aria-selected={orderMode === 'type'}
                 className={`order-method-card ${orderMode === 'type' ? 'active' : ''}`}
-                onClick={() => setOrderMode('type')}
+                onClick={() => {
+                  setOrderMode('type');
+                  if (submissionError) setSubmissionError(null);
+                }}
               >
                 <div className="method-icon-wrap" aria-hidden="true">
                   {/* Keyboard Icon */}
@@ -243,7 +274,10 @@ export const CustomerBookingForm: React.FC = () => {
                 role="tab"
                 aria-selected={orderMode === 'voice'}
                 className={`order-method-card ${orderMode === 'voice' ? 'active' : ''}`}
-                onClick={() => setOrderMode('voice')}
+                onClick={() => {
+                  setOrderMode('voice');
+                  if (submissionError) setSubmissionError(null);
+                }}
               >
                 <div className="method-icon-wrap" aria-hidden="true">
                   {/* Microphone Icon */}
@@ -263,7 +297,10 @@ export const CustomerBookingForm: React.FC = () => {
                   id={textInputId}
                   rows={3}
                   value={textRequest}
-                  onChange={(e) => setTextRequest(e.target.value)}
+                  onChange={(e) => {
+                    setTextRequest(e.target.value);
+                    if (submissionError) setSubmissionError(null);
+                  }}
                   placeholder="Where do you want to go? Describe your request..."
                   className="type-order-textarea"
                 />
@@ -281,6 +318,17 @@ export const CustomerBookingForm: React.FC = () => {
             )}
           </div>
 
+          {/* Submission Error Banner */}
+          {submissionError && (
+            <div className="submission-error-alert" role="alert">
+              <span className="error-alert-icon" aria-hidden="true">⚠️</span>
+              <div className="error-alert-content">
+                <strong>Submission Issue</strong>
+                <p>{submissionError}</p>
+              </div>
+            </div>
+          )}
+
           {/* C. Order Ride Button */}
           <div className="submit-row">
             <button
@@ -288,6 +336,7 @@ export const CustomerBookingForm: React.FC = () => {
               disabled={!isFormValid || isSubmitting}
               className="btn-order-ride"
               aria-label="Order Ride"
+              aria-busy={isSubmitting}
             >
               {/* Motorcycle with speed trails icon */}
               <span className="order-btn-motorcycle" aria-hidden="true">
@@ -305,7 +354,7 @@ export const CustomerBookingForm: React.FC = () => {
               </span>
 
               <span className="order-btn-label">
-                {isSubmitting ? 'Ordering Ride...' : 'Order Ride'}
+                {isSubmitting ? 'Submitting Order...' : 'Order Ride'}
               </span>
 
               {/* Right Chevron Arrow */}
