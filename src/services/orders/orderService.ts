@@ -59,7 +59,6 @@ export const orderService = {
 
       // 4. Handle Edge Function error response
       if (error) {
-        // If error response contains context with JSON error message
         let serverErrorMsg = error.message || 'Failed to submit order. Please check your connection and try again.';
         if (error.context && typeof error.context.json === 'function') {
           try {
@@ -69,6 +68,13 @@ export const orderService = {
             // fallback to error.message
           }
         }
+
+        // Friendly detection for undeployed Edge Function (404)
+        if (serverErrorMsg.includes('404') || error.message?.includes('404')) {
+          serverErrorMsg =
+            "The 'submit-order' Edge Function has not been deployed to your Supabase project (bftlhbxhipbfmwbajcjf) yet. Please deploy it with: npx supabase functions deploy submit-order --no-verify-jwt";
+        }
+
         return {
           success: false,
           error: serverErrorMsg
