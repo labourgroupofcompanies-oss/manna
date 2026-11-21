@@ -30,11 +30,24 @@ export interface Order {
   orderType: OrderType;
   requestDescription?: string | null;
   voiceRecordingPath?: string | null;
+  customerComment?: string | null;
   voiceNote?: OrderVoiceNote;
+  bookingToken?: string;
   status: OrderStatus;
   pickupLocation?: OrderLocation;
   dropoffLocation?: OrderLocation;
-  riderId?: string;
+  riderId?: string | null;
+  riderName?: string | null;
+  riderPhone?: string | null;
+  motorcycleModel?: string | null;
+  motorcycleReg?: string | null;
+  motorcycleColour?: string | null;
+  riderPhotoUrl?: string | null;
+  operatingArea?: string | null;
+  acceptedAt?: string | null;
+  completedAt?: string | null;
+  cancelledAt?: string | null;
+  cancellationReason?: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -51,12 +64,32 @@ export interface SubmitOrderPayload {
 }
 
 /**
+ * Response returned from tracking query
+ */
+export interface TrackOrderResponse {
+  success: boolean;
+  order?: Order;
+  error?: string;
+}
+
+/**
+ * Response returned from customer phone order list query
+ */
+export interface CustomerOrdersResponse {
+  success: boolean;
+  orders?: Order[];
+  error?: string;
+}
+
+/**
  * Response returned from the submit-order Edge Function
  */
 export interface SubmitOrderResponse {
   success: boolean;
   orderReference?: string;
   orderId?: string;
+  bookingToken?: string;
+  voiceRecordingPath?: string | null;
   status?: OrderStatus;
   createdAt?: string;
   message?: string;

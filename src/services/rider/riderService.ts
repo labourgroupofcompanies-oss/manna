@@ -3,6 +3,7 @@ import { validateGhanaPhone } from '../../utils';
 import { mediaUploadManager } from '../storage/mediaUploadManager';
 import type {
   RiderProfile,
+  RiderVerificationStatus,
   RiderRegistrationPayload,
   RiderLoginPayload,
   AvailableOrderSummary,
@@ -88,6 +89,7 @@ export const riderService = {
       }
 
       // 5. Sign up rider with Supabase Auth
+      let authUser = null;
       const { data: authData, error: authError } = await supabase.auth.signUp({
         email: authEmail,
         password: payload.password,
@@ -101,13 +103,61 @@ export const riderService = {
       });
 
       if (authError) {
-        if (authError.message.includes('already registered')) {
-          return { success: false, error: 'An account with this phone number already exists. Please log in.' };
+        // Self-healing recovery: if auth user already exists (e.g. from an earlier attempt where profile creation failed),
+        // try signing in to recover and finish setting up the rider profile.
+        if (authError.message.toLowerCase().includes('already registered')) {
+          const { data: loginData, error: loginErr } = await supabase.auth.signInWithPassword({
+            email: authEmail,
+            password: payload.password
+          });
+
+          if (loginErr || !loginData.user) {
+            return {
+              success: false,
+              error: 'An account with this phone number already exists. Please log in with your password.'
+            };
+          }
+
+          // Check if profile actually exists
+          const { data: existingProfile } = await supabase
+            .from('riders')
+            .select('id')
+            .eq('user_id', loginData.user.id)
+            .maybeSingle();
+
+          if (existingProfile) {
+            return {
+              success: false,
+              error: 'This phone number is already registered as a rider. Please log in.'
+            };
+          }
+
+          // Found orphaned auth user without rider profile, resume registration
+          authUser = loginData.user;
+        } else {
+          return { success: false, error: authError.message };
         }
-        return { success: false, error: authError.message };
+      } else {
+        authUser = authData.user;
+
+        // If email confirmation is enabled in Supabase, session will be null and RLS will fail
+        if (!authData.session) {
+          // Attempt immediate password login in case user was confirmed
+          const { data: loginData } = await supabase.auth.signInWithPassword({
+            email: authEmail,
+            password: payload.password
+          });
+
+          if (!loginData?.session) {
+            return {
+              success: false,
+              error: 'Supabase email confirmation is enabled. Please disable "Confirm email" in Supabase Dashboard (Authentication -> Providers -> Email) because Okada Book uses phone-based login.'
+            };
+          }
+        }
       }
 
-      const user = authData.user;
+      const user = authUser;
       if (!user) {
         return { success: false, error: 'Registration failed. Could not create rider account.' };
       }
@@ -141,7 +191,8 @@ export const riderService = {
           motorcycle_colour: payload.motorcycleColour.trim(),
           operating_area: payload.operatingArea.trim(),
           profile_photo_path: profilePhotoPath,
-          is_available: false
+          is_available: false,
+          verification_status: 'pending'
         })
         .select()
         .single();
@@ -165,6 +216,11 @@ export const riderService = {
         profilePhotoPath: riderRecord.profile_photo_path,
         profilePhotoUrl,
         isAvailable: riderRecord.is_available,
+        verificationStatus: (riderRecord.verification_status || 'pending') as RiderVerificationStatus,
+        verificationSubmittedAt: riderRecord.verification_submitted_at,
+        verifiedAt: riderRecord.verified_at,
+        verifiedBy: riderRecord.verified_by,
+        verificationNotes: riderRecord.verification_notes,
         createdAt: riderRecord.created_at,
         updatedAt: riderRecord.updated_at
       };
@@ -244,6 +300,11 @@ export const riderService = {
         profilePhotoPath: riderRecord.profile_photo_path,
         profilePhotoUrl,
         isAvailable: riderRecord.is_available,
+        verificationStatus: (riderRecord.verification_status || 'pending') as RiderVerificationStatus,
+        verificationSubmittedAt: riderRecord.verification_submitted_at,
+        verifiedAt: riderRecord.verified_at,
+        verifiedBy: riderRecord.verified_by,
+        verificationNotes: riderRecord.verification_notes,
         createdAt: riderRecord.created_at,
         updatedAt: riderRecord.updated_at
       };
@@ -301,6 +362,11 @@ export const riderService = {
         profilePhotoPath: riderRecord.profile_photo_path,
         profilePhotoUrl,
         isAvailable: riderRecord.is_available,
+        verificationStatus: (riderRecord.verification_status || 'pending') as RiderVerificationStatus,
+        verificationSubmittedAt: riderRecord.verification_submitted_at,
+        verifiedAt: riderRecord.verified_at,
+        verifiedBy: riderRecord.verified_by,
+        verificationNotes: riderRecord.verification_notes,
         createdAt: riderRecord.created_at,
         updatedAt: riderRecord.updated_at
       };
@@ -321,6 +387,23 @@ export const riderService = {
       const { data: userData } = await supabase.auth.getUser();
       if (!userData?.user) {
         return { success: false, isAvailable, error: 'Authentication session expired.' };
+      }
+
+      // Check if rider account is suspended before going online
+      if (isAvailable) {
+        const { data: riderRec } = await supabase
+          .from('riders')
+          .select('verification_status')
+          .eq('user_id', userData.user.id)
+          .maybeSingle();
+
+        if (riderRec?.verification_status && ['suspended', 'rejected'].includes(riderRec.verification_status)) {
+          return {
+            success: false,
+            isAvailable: false,
+            error: 'Your rider account has been suspended by administration. You cannot go online.'
+          };
+        }
       }
 
       const { error } = await supabase
@@ -356,14 +439,20 @@ export const riderService = {
           orderType: o.order_type as 'text' | 'voice',
           orderDescription: (o.order_description as string) || null,
           voiceRecordingPath: (o.voice_recording_path as string) || null,
+          customerComment: (o.customer_comment as string) || null,
           createdAt: o.created_at as string
         }));
       }
 
       // 2. Direct fallback query (protects customer phone by selecting only needed fields)
+      const currentRider = await this.getCurrentRider();
+      if (!currentRider || !currentRider.isAvailable || ['suspended', 'rejected'].includes(currentRider.verificationStatus)) {
+        return [];
+      }
+
       const { data, error } = await supabase
         .from('orders')
-        .select('id, order_reference, order_type, order_description, voice_recording_path, created_at')
+        .select('id, order_reference, order_type, order_description, voice_recording_path, customer_comment, created_at')
         .eq('status', 'pending')
         .is('rider_id', null)
         .order('created_at', { ascending: false })
@@ -377,6 +466,7 @@ export const riderService = {
         orderType: o.order_type as 'text' | 'voice',
         orderDescription: o.order_description,
         voiceRecordingPath: o.voice_recording_path,
+        customerComment: (o as Record<string, unknown>).customer_comment as string | null ?? null,
         createdAt: o.created_at
       }));
     } catch {
@@ -411,6 +501,7 @@ export const riderService = {
         orderType: o.order_type as 'text' | 'voice',
         orderDescription: o.order_description,
         voiceRecordingPath: o.voice_recording_path,
+        customerComment: (o as Record<string, unknown>).customer_comment as string | null ?? null,
         status: o.status,
         createdAt: o.created_at,
         acceptedAt: o.accepted_at || o.created_at
@@ -454,6 +545,7 @@ export const riderService = {
           orderType: data.order.orderType,
           orderDescription: data.order.orderDescription,
           voiceRecordingPath: data.order.voiceRecordingPath,
+          customerComment: data.order.customerComment ?? data.order.customer_comment ?? null,
           status: data.order.status,
           createdAt: data.order.createdAt,
           acceptedAt: data.order.acceptedAt

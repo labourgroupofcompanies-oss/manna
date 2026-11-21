@@ -1,202 +1,302 @@
-.rider-auth-card {
+/* Rider Auth - Minimal & Human Design */
+
+.rider-auth-box {
   background-color: #FFFFFF;
-  border-radius: var(--radius-xl);
-  padding: clamp(20px, 4.5vw, 32px);
-  box-shadow: 0 4px 20px rgba(6, 58, 155, 0.08);
-  border: 1px solid var(--color-border);
+  border-radius: 16px;
+  padding: 24px 20px;
+  border: 1px solid #E2E8F0;
   display: flex;
   flex-direction: column;
   gap: 20px;
+  width: 100%;
+  box-sizing: border-box;
 }
 
-.rider-auth-header {
+/* Minimal Header */
+.auth-header {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.auth-title {
+  font-size: 1.35rem;
+  font-weight: 700;
+  color: #0F172A;
+  letter-spacing: -0.02em;
+}
+
+.auth-subtitle {
+  font-size: 0.88rem;
+  color: #64748B;
+  line-height: 1.4;
+}
+
+/* Simple 2-Option Pill Switcher */
+.auth-pill-switcher {
+  display: flex;
+  background-color: #F1F5F9;
+  padding: 3px;
+  border-radius: 10px;
+  gap: 2px;
+}
+
+.pill-switch-btn {
+  flex: 1;
+  padding: 8px 12px;
+  border: none;
+  background: transparent;
+  border-radius: 8px;
+  font-size: 0.86rem;
+  font-weight: 600;
+  color: #64748B;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  text-align: center;
+}
+
+.pill-switch-btn.active {
+  background-color: #FFFFFF;
+  color: #0F172A;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+}
+
+/* Clean Error Message */
+.auth-error-box {
+  padding: 10px 14px;
+  border-radius: 8px;
+  background-color: #FEF2F2;
+  border: 1px solid #FECACA;
+  color: #B91C1C;
+  font-size: 0.84rem;
+  line-height: 1.4;
+}
+
+/* Form Layout */
+.auth-form-fields {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  width: 100%;
+}
+
+.auth-field {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  width: 100%;
+}
+
+.field-label {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: #334155;
   display: flex;
   align-items: center;
-  gap: 14px;
-  padding-bottom: 14px;
-  border-bottom: 1px solid var(--color-border);
+  justify-content: space-between;
 }
 
-.rider-auth-logo {
-  width: 50px;
-  height: 50px;
-  border-radius: var(--radius-full);
-  background-color: #063A9B;
+.carrier-tag {
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: #0369A1;
+}
+
+.input-simple {
+  width: 100%;
+  min-height: 46px;
+  padding: 10px 12px;
+  border: 1px solid #CBD5E1;
+  border-radius: 10px;
+  font-size: 0.92rem;
+  color: #0F172A;
+  background-color: #FFFFFF;
+  box-sizing: border-box;
+  outline: none;
+  transition: border-color 0.15s ease;
+}
+
+.input-simple:focus {
+  border-color: #063A9B;
+}
+
+.input-simple::placeholder {
+  color: #94A3B8;
+}
+
+/* Phone Input with +233 prefix */
+.phone-input-row {
+  display: flex;
+  align-items: center;
+  border: 1px solid #CBD5E1;
+  border-radius: 10px;
+  background-color: #FFFFFF;
+  padding-left: 12px;
+  transition: border-color 0.15s ease;
+}
+
+.phone-input-row:focus-within {
+  border-color: #063A9B;
+}
+
+.country-code-pill {
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: #475569;
+  padding-right: 8px;
+  border-right: 1px solid #E2E8F0;
+  user-select: none;
+}
+
+.phone-input-row .input-simple {
+  border: none;
+  padding-left: 10px;
+}
+
+.phone-input-row .input-simple:focus {
+  border-color: transparent;
+}
+
+/* Password Input with eye toggle */
+.password-input-row {
+  display: flex;
+  align-items: center;
+  border: 1px solid #CBD5E1;
+  border-radius: 10px;
+  background-color: #FFFFFF;
+  padding-right: 8px;
+  transition: border-color 0.15s ease;
+}
+
+.password-input-row:focus-within {
+  border-color: #063A9B;
+}
+
+.password-input-row .input-simple {
+  border: none;
+}
+
+.password-input-row .input-simple:focus {
+  border-color: transparent;
+}
+
+.eye-btn {
+  background: none;
+  border: none;
+  color: #64748B;
+  padding: 8px;
+  cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 1.5rem;
-  box-shadow: 0 4px 10px rgba(6, 58, 155, 0.25);
-  flex-shrink: 0;
 }
 
-.rider-auth-title {
-  font-size: clamp(1.2rem, 3.8vw, 1.4rem);
-  font-weight: 700;
-  color: #101B3D;
-  line-height: 1.2;
+.eye-btn:hover {
+  color: #0F172A;
 }
 
-.rider-auth-tagline {
-  font-size: 0.85rem;
-  color: #0B57D0;
-  font-weight: 500;
-  margin-top: 2px;
-}
-
-/* Auth Mode Tabs */
-.rider-auth-tabs {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 8px;
-  background-color: var(--color-bg-light);
-  padding: 4px;
-  border-radius: var(--radius-md);
-  border: 1px solid var(--color-border);
-}
-
-.rider-tab-btn {
-  padding: 10px 14px;
-  border-radius: var(--radius-sm);
-  font-size: 0.9rem;
-  font-weight: 600;
-  color: #64748B;
-  background: transparent;
-  border: none;
-  cursor: pointer;
-  transition: all 0.15s ease;
-  min-height: 44px;
-}
-
-.rider-tab-btn.active {
-  background-color: #063A9B;
-  color: #FFFFFF;
-  box-shadow: 0 2px 6px rgba(6, 58, 155, 0.2);
-}
-
-/* Forms */
-.rider-form {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-  width: 100%;
-  box-sizing: border-box;
-}
-
-.form-row-2 {
+/* Two Columns on tablets/desktops */
+.form-cols-2 {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 12px;
-  width: 100%;
-  box-sizing: border-box;
 }
 
-.form-row-2 > * {
-  min-width: 0;
-  width: 100%;
-}
-
-@media (max-width: 520px) {
-  .form-row-2 {
+@media (max-width: 440px) {
+  .form-cols-2 {
     grid-template-columns: 1fr;
-    gap: 16px;
   }
 }
 
-.req {
-  color: #E53E3E;
-}
-
-.field-hint {
-  font-size: 0.75rem;
-  color: #64748B;
-  margin-top: 2px;
-}
-
-.uppercase-input {
-  text-transform: uppercase;
-}
-
-.select-control {
-  appearance: auto;
-  cursor: pointer;
-}
-
-.file-input {
+/* Minimal file upload */
+.simple-file-label {
+  display: flex;
+  align-items: center;
+  gap: 10px;
   padding: 10px 12px;
-  font-size: 0.85rem;
+  border: 1px dashed #CBD5E1;
+  border-radius: 10px;
+  background-color: #F8FAFC;
   cursor: pointer;
+  font-size: 0.84rem;
+  color: #475569;
 }
 
-.rider-submit-btn {
-  margin-top: 8px;
-  min-height: 54px;
-  font-size: 1.05rem;
-  font-weight: 700;
-  letter-spacing: 0.01em;
+.simple-file-label:hover {
+  border-color: #063A9B;
+  background-color: #F1F5F9;
 }
 
-.rider-toggle-note {
-  text-align: center;
-  font-size: 0.88rem;
+.preview-thumb {
+  width: 36px;
+  height: 36px;
+  border-radius: 6px;
+  object-fit: cover;
+}
+
+/* Primary Button */
+.btn-auth-primary {
+  width: 100%;
+  min-height: 48px;
+  background-color: #063A9B;
+  color: #FFFFFF;
+  border: none;
+  border-radius: 10px;
+  font-size: 0.94rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+  margin-top: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.btn-auth-primary:hover:not(:disabled) {
+  background-color: #052F80;
+}
+
+.btn-auth-primary:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* Switch link */
+.auth-switch-text {
+  font-size: 0.84rem;
   color: #64748B;
+  text-align: center;
   margin-top: 4px;
 }
 
-.link-btn {
+.auth-switch-link {
   background: none;
   border: none;
-  color: #0B57D0;
-  font-weight: 700;
+  color: #063A9B;
+  font-weight: 600;
   cursor: pointer;
   padding: 0;
   font-size: inherit;
   text-decoration: underline;
 }
 
-/* Error Banner */
-.rider-error-banner {
+/* Success Card */
+.reg-success-view {
   display: flex;
-  align-items: flex-start;
-  gap: 10px;
-  padding: 12px 14px;
-  background-color: #FEF2F2;
-  border: 1.5px solid #FCA5A5;
-  color: #991B1B;
-  border-radius: var(--radius-md);
-  font-size: 0.88rem;
-  line-height: 1.4;
-}
-
-.error-icon {
-  font-size: 1.1rem;
-  line-height: 1;
-}
-
-/* Registration Success */
-.rider-reg-success-card {
-  text-align: center;
+  flex-direction: column;
   align-items: center;
-  padding: 36px 20px;
+  text-align: center;
+  gap: 14px;
+  padding: 20px 8px;
 }
 
-.rider-success-badge {
-  width: 60px;
-  height: 60px;
-  border-radius: var(--radius-full);
-  background-color: #38A169;
-  color: #FFFFFF;
+.success-check-circle {
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  background-color: #ECFDF5;
+  color: #16A34A;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 2rem;
-  font-weight: bold;
-  box-shadow: 0 4px 12px rgba(56, 161, 105, 0.35);
-}
-
-.rider-auth-desc {
-  font-size: 0.92rem;
-  color: #4A5568;
-  max-width: 320px;
-  line-height: 1.5;
 }

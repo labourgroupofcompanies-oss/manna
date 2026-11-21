@@ -12,3 +12,7 @@ enabled = true
 
 [functions.submit-order]
 verify_jwt = false # Order submission is open to anonymous customers without login
+
+[functions.send-push-notification]
+verify_jwt = false # Handles both anonymous customers (capability token) and authenticated riders/admins
+

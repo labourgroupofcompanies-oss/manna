@@ -2,6 +2,23 @@
  * Rider domain models and authentication types for Okada Book
  */
 
+export type RiderVerificationStatus = 'pending' | 'approved' | 'rejected' | 'suspended';
+
+export interface RiderVerificationDocument {
+  id: string;
+  riderId: string;
+  documentType: 'national_id' | 'drivers_license' | 'motorcycle_insurance' | 'roadworthiness' | 'other';
+  storagePath: string;
+  fileName: string;
+  mimeType: string;
+  fileSizeBytes: number;
+  verificationStatus: 'pending' | 'verified' | 'rejected';
+  uploadedAt: string;
+  verifiedAt?: string | null;
+  notes?: string | null;
+  documentUrl?: string | null; // Signed URL generated for admins
+}
+
 export interface RiderProfile {
   id: string;
   userId: string;
@@ -14,6 +31,11 @@ export interface RiderProfile {
   profilePhotoPath?: string | null;
   profilePhotoUrl?: string | null;
   isAvailable: boolean;
+  verificationStatus: RiderVerificationStatus;
+  verificationSubmittedAt?: string | null;
+  verifiedAt?: string | null;
+  verifiedBy?: string | null;
+  verificationNotes?: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -41,6 +63,7 @@ export interface AvailableOrderSummary {
   orderDescription?: string | null;
   voiceRecordingPath?: string | null;
   voiceRecordingUrl?: string | null;
+  customerComment?: string | null;
   pickupArea?: string;
   createdAt: string;
 }
@@ -53,6 +76,7 @@ export interface ActiveRiderOrder {
   orderDescription?: string | null;
   voiceRecordingPath?: string | null;
   voiceRecordingUrl?: string | null;
+  customerComment?: string | null;
   status: 'accepted' | 'completed' | 'cancelled';
   createdAt: string;
   acceptedAt: string;

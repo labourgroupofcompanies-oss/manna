@@ -112,3 +112,60 @@ export function formatDuration(totalSeconds: number): string {
   const pad = (n: number) => (n < 10 ? `0${n}` : `${n}`);
   return `${pad(minutes)}:${pad(seconds)}`;
 }
+
+/**
+ * Extract 1-2 letter initials from a rider's name for avatar placeholder
+ */
+export function getRiderInitials(name?: string | null): string {
+  if (!name || typeof name !== 'string') return '🏍️';
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return '🏍️';
+  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+  return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+}
+
+/**
+ * Resolve a rider profile photo path or URL to an absolute public HTTP(S) URL
+ * Handles relative storage paths (e.g. "avatars/user/photo.webp"),
+ * paths prefixed with bucket name ("rider-profiles/avatars/..."),
+ * or already-qualified public URLs.
+ */
+export function resolveRiderPhotoUrl(pathOrUrl?: string | null): string | null {
+  if (!pathOrUrl || typeof pathOrUrl !== 'string') return null;
+  const trimmed = pathOrUrl.trim();
+  if (!trimmed) return null;
+
+  // 1. If already an absolute HTTP/HTTPS URL, data URI, or blob URL, return as-is
+  if (/^(https?:\/\/|data:|blob:)/i.test(trimmed)) {
+    return trimmed;
+  }
+
+  // 2. Strip leading slashes and optional bucket name prefix
+  let cleanPath = trimmed.replace(/^\/+/, '');
+  if (cleanPath.startsWith('rider-profiles/')) {
+    cleanPath = cleanPath.replace(/^rider-profiles\//, '');
+  }
+
+  // 3. Resolve base Supabase URL safely across browser and test environments
+  let supabaseUrl = '';
+  try {
+    if (typeof import.meta !== 'undefined' && import.meta?.env?.VITE_SUPABASE_URL) {
+      supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+    } else {
+      const g = globalThis as unknown as { process?: { env?: Record<string, string | undefined> } };
+      if (g.process?.env?.VITE_SUPABASE_URL) {
+        supabaseUrl = g.process.env.VITE_SUPABASE_URL;
+      }
+    }
+  } catch {
+    // Ignore runtime environment lookup errors
+  }
+
+  if (supabaseUrl) {
+    const base = supabaseUrl.replace(/\/+$/, '');
+    return `${base}/storage/v1/object/public/rider-profiles/${cleanPath}`;
+  }
+
+  return trimmed;
+}
+

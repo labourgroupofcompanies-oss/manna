@@ -10,12 +10,12 @@
   overflow-x: hidden;
 }
 
-/* 1. Top Hero Section with Logo & Rider (No phone status bar) */
+/* 1. Top Hero Section with Manna Logo & Rider */
 .okada-hero-banner {
   width: 100%;
-  aspect-ratio: 682 / 270;
-  background: url('/hero-banner.jpg') no-repeat top center;
-  background-size: 100% auto;
+  aspect-ratio: 1376 / 640;
+  background: url('/hero-banner-manna.jpg') no-repeat center center;
+  background-size: cover;
   position: relative;
   flex-shrink: 0;
 }
@@ -25,7 +25,7 @@
   background-color: #FFFFFF;
   border-top-left-radius: clamp(28px, 6vw, 40px);
   border-top-right-radius: clamp(28px, 6vw, 40px);
-  margin-top: clamp(-36px, -6vw, -24px);
+  margin-top: clamp(-14px, -2.5vw, -8px);
   position: relative;
   z-index: 10;
   display: flex;
@@ -33,6 +33,40 @@
   box-shadow: 0 -8px 30px rgba(6, 58, 155, 0.12);
   padding: clamp(22px, 5vw, 32px) clamp(16px, 4.5vw, 28px) 0 clamp(16px, 4.5vw, 28px);
   flex: 1;
+}
+
+/* Quick Track Banner */
+.quick-track-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background-color: #F0F7FF;
+  border: 1px solid #BAE6FD;
+  border-radius: var(--radius-md, 12px);
+  padding: 8px 14px;
+  margin-bottom: 12px;
+  font-size: 0.82rem;
+}
+
+.quick-track-text {
+  color: #0369A1;
+  font-weight: 500;
+}
+
+.quick-track-btn {
+  background: none;
+  border: none;
+  color: #0284C7;
+  font-weight: 700;
+  font-size: 0.82rem;
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  padding: 0;
+}
+
+.quick-track-btn:hover {
+  color: #0369A1;
 }
 
 .booking-form-content {
@@ -410,7 +444,116 @@
   letter-spacing: 0.05em;
 }
 
-/* Upload Progress Box */
+/* Professional Live Dispatch Progress Card */
+.dispatch-progress-card {
+  background: linear-gradient(135deg, #F8FAFD 0%, #EFF6FF 100%);
+  border: 1.5px solid #BFDBFE;
+  border-radius: clamp(14px, 2.5vw, 18px);
+  padding: 16px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  box-shadow: 0 4px 16px rgba(6, 58, 155, 0.08);
+  animation: fadeInDispatch 0.25s ease-out;
+}
+
+@keyframes fadeInDispatch {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.dispatch-progress-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.dispatch-radar-circle {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  background: #063A9B;
+  color: #FFFFFF;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  flex-shrink: 0;
+}
+
+.radar-ripple {
+  position: absolute;
+  inset: -4px;
+  border-radius: 50%;
+  border: 2px solid #3B82F6;
+  opacity: 0.8;
+  animation: radarPulse 1.6s cubic-bezier(0.25, 1, 0.5, 1) infinite;
+}
+
+@keyframes radarPulse {
+  0% { transform: scale(0.9); opacity: 0.8; }
+  100% { transform: scale(1.45); opacity: 0; }
+}
+
+.dispatch-text-group {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1;
+}
+
+.dispatch-title {
+  font-size: 0.94rem;
+  font-weight: 700;
+  color: #0F172A;
+  letter-spacing: -0.01em;
+}
+
+.dispatch-sub {
+  font-size: 0.78rem;
+  color: #64748B;
+  line-height: 1.35;
+}
+
+.dispatch-percentage-badge {
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: #063A9B;
+  background: #DBEAFE;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-variant-numeric: tabular-nums;
+}
+
+.dispatch-progress-track {
+  width: 100%;
+  height: 7px;
+  background-color: #E2E8F0;
+  border-radius: 999px;
+  overflow: hidden;
+  position: relative;
+}
+
+.dispatch-progress-bar {
+  height: 100%;
+  background: linear-gradient(90deg, #063A9B, #2563EB, #38BDF8);
+  border-radius: 999px;
+  transition: width 0.3s ease-out;
+  position: relative;
+}
+
+.dispatch-progress-bar.indeterminate {
+  width: 50%;
+  animation: indeterminateSlide 1.5s infinite ease-in-out;
+}
+
+@keyframes indeterminateSlide {
+  0% { transform: translateX(-100%); width: 35%; }
+  50% { width: 65%; }
+  100% { transform: translateX(250%); width: 35%; }
+}
+
+/* Legacy fallback upload-progress-box */
 .upload-progress-box {
   background-color: #F0F7FF;
   border: 1.5px solid #BFDBFE;

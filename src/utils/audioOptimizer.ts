@@ -1,10 +1,18 @@
 /**
  * Audio Optimization & Validation Utility
  * Validates recording duration (max 90s), file size, and supported MIME formats.
+ * Implements Opus codec speech compression settings for ultra-compact voice notes.
  */
 
 export const MAX_AUDIO_DURATION_SECONDS = 90;
 export const MAX_AUDIO_SIZE_BYTES = 10 * 1024 * 1024; // 10 MB
+
+/**
+ * Standard 24 kbps Opus voice bitrate.
+ * 24 kbps provides crystal-clear mono voice quality while compressing 60 seconds
+ * of speech down to ~180 KB (over 80% reduction compared to raw/default audio).
+ */
+export const OPUS_AUDIO_BITRATE = 24000;
 
 export const SUPPORTED_AUDIO_MIME_TYPES = [
   'audio/webm',
@@ -19,16 +27,27 @@ export const SUPPORTED_AUDIO_MIME_TYPES = [
   'audio/mp3'
 ];
 
+export interface AudioCompressionStats {
+  codec: string;
+  bitrateKbps: number;
+  compressedSizeBytes: number;
+  estimatedRawSizeBytes: number;
+  savingsPercent: number;
+  isOpus: boolean;
+}
+
 export interface AudioValidationResult {
   isValid: boolean;
   durationSeconds: number;
   sizeBytes: number;
   mimeType: string;
   error?: string;
+  compressionStats?: AudioCompressionStats;
 }
 
 /**
- * Detect the best supported audio recording format for the current browser
+ * Detect the best supported audio recording format for the current browser,
+ * prioritizing Opus codec containers (WebM with Opus, Ogg with Opus).
  */
 export function getPreferredAudioMimeType(): string {
   if (typeof window === 'undefined' || typeof window.MediaRecorder === 'undefined') {
@@ -37,9 +56,9 @@ export function getPreferredAudioMimeType(): string {
 
   const candidateFormats = [
     'audio/webm;codecs=opus',
+    'audio/ogg;codecs=opus',
     'audio/webm',
     'audio/mp4',
-    'audio/ogg;codecs=opus',
     'audio/ogg',
     'audio/aac'
   ];
@@ -51,6 +70,44 @@ export function getPreferredAudioMimeType(): string {
   }
 
   return ''; // Browser default
+}
+
+/**
+ * Provides optimal MediaRecorder configuration tuned for Opus voice compression.
+ */
+export function getOpusMediaRecorderOptions(): MediaRecorderOptions {
+  const mimeType = getPreferredAudioMimeType();
+  const options: MediaRecorderOptions = {
+    audioBitsPerSecond: OPUS_AUDIO_BITRATE
+  };
+  if (mimeType) {
+    options.mimeType = mimeType;
+  }
+  return options;
+}
+
+/**
+ * Computes audio compression statistics comparing the compressed Opus file
+ * to uncompressed 16-bit 24kHz mono PCM speech audio.
+ */
+export function calculateCompressionStats(blob: Blob, durationSeconds: number): AudioCompressionStats {
+  const mimeType = (blob.type || '').toLowerCase();
+  const isOpus = mimeType.includes('opus') || mimeType.includes('webm') || mimeType.includes('ogg');
+  const duration = Math.max(1, durationSeconds);
+  
+  // 16-bit 24,000 Hz Mono PCM estimate = 24,000 * 2 bytes/sec = 48,000 bytes/sec
+  const estimatedRawSizeBytes = duration * 48000;
+  const compressedSizeBytes = blob.size;
+  const savings = Math.max(0, Math.round(((estimatedRawSizeBytes - compressedSizeBytes) / estimatedRawSizeBytes) * 100));
+
+  return {
+    codec: isOpus ? 'Opus' : (mimeType.split(';')[0].replace('audio/', '') || 'Audio'),
+    bitrateKbps: Math.round(OPUS_AUDIO_BITRATE / 1000),
+    compressedSizeBytes,
+    estimatedRawSizeBytes,
+    savingsPercent: savings > 0 ? savings : 0,
+    isOpus
+  };
 }
 
 /**

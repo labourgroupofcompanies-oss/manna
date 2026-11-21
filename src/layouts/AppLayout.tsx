@@ -1,50 +1,42 @@
 import React from 'react';
+import { useRouter } from '../router';
 import './AppLayout.css';
 
 interface AppLayoutProps {
   children: React.ReactNode;
-  activeTab?: string;
-  onTabChange?: (tab: string) => void;
+  activeSection?: 'customer' | 'rider';
 }
 
 export const AppLayout: React.FC<AppLayoutProps> = ({
   children,
-  activeTab = 'customer',
-  onTabChange
+  activeSection = 'customer'
 }) => {
+  const { navigate } = useRouter();
+
   return (
-    <div className={`app-container mobile-shell ${activeTab === 'rider' ? 'rider-view' : ''}`}>
+    <div className={`app-container mobile-shell ${activeSection === 'rider' ? 'rider-view' : ''}`}>
       {/* Main Content Area */}
       <main className="app-main-clean">
         {children}
       </main>
 
-      {/* Discreet Development / Preview Role Switcher */}
-      {onTabChange && (
-        <aside className="dev-role-switcher" aria-label="Development Stage Switcher">
-          <button
-            type="button"
-            className={`dev-tab-btn ${activeTab === 'customer' ? 'active' : ''}`}
-            onClick={() => onTabChange('customer')}
-          >
-            Customer
-          </button>
-          <button
-            type="button"
-            className={`dev-tab-btn ${activeTab === 'rider' ? 'active' : ''}`}
-            onClick={() => onTabChange('rider')}
-          >
-            Rider
-          </button>
-          <button
-            type="button"
-            className={`dev-tab-btn ${activeTab === 'admin' ? 'active' : ''}`}
-            onClick={() => onTabChange('admin')}
-          >
-            Admin
-          </button>
-        </aside>
-      )}
+      {/* Public Role Navigation (Customer & Rider only - Admin links strictly separated) */}
+      <aside className="dev-role-switcher" aria-label="Role Switcher">
+        <button
+          type="button"
+          className={`dev-tab-btn ${activeSection === 'customer' ? 'active' : ''}`}
+          onClick={() => navigate('/')}
+        >
+          Customer
+        </button>
+        <button
+          type="button"
+          className={`dev-tab-btn ${activeSection === 'rider' ? 'active' : ''}`}
+          onClick={() => navigate('/rider')}
+        >
+          Rider
+        </button>
+      </aside>
     </div>
   );
 };

@@ -1,0 +1,118 @@
+/* Rider Page Shell - Clean & Minimalist */
+.rider-page-shell {
+  width: 100%;
+  min-height: 100%;
+  display: flex;
+  flex-direction: column;
+  background-color: #F8FAFC;
+}
+
+/* Minimal Top Navigation Header */
+.rider-top-nav-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 20px;
+  background-color: #FFFFFF;
+  border-bottom: 1px solid #E2E8F0;
+  position: sticky;
+  top: 0;
+  z-index: 30;
+}
+
+.rider-brand-lockup {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.rider-brand-logo {
+  height: 28px;
+  width: auto;
+  display: block;
+  object-fit: contain;
+}
+
+.rider-nav-title {
+  font-size: 1rem;
+  font-weight: 700;
+  color: #0F172A;
+  letter-spacing: -0.01em;
+}
+
+.rider-nav-tag {
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: #64748B;
+  background-color: #F1F5F9;
+  padding: 2px 7px;
+  border-radius: 6px;
+}
+
+.rider-nav-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: #64748B;
+}
+
+.rider-nav-status.online {
+  color: #15803D;
+}
+
+.status-dot-nav {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background-color: #94A3B8;
+}
+
+.rider-nav-status.online .status-dot-nav {
+  background-color: #16A34A;
+}
+
+/* Page Body */
+.rider-page-body {
+  width: 100%;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+}
+
+.rider-page-body.authenticated {
+  padding: 0;
+}
+
+/* Simple Loading Screen */
+.rider-loading-screen {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 360px;
+  gap: 14px;
+  padding: 32px 16px;
+  text-align: center;
+}
+
+.rider-spinner {
+  width: 36px;
+  height: 36px;
+  border: 3px solid #E2E8F0;
+  border-top-color: #063A9B;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.rider-loading-text {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #475569;
+}

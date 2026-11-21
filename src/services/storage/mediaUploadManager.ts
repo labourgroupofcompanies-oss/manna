@@ -369,21 +369,25 @@ export const mediaUploadManager = {
       .from(bucket)
       .upload(storagePath, file, {
         contentType: mimeType,
-        upsert: true
+        upsert: false
       });
 
     if (error) {
       const errMsg = error.message || '';
       if (
         errMsg.toLowerCase().includes('bucket not found') ||
-        (error as any).status === 400 ||
         (error as any).statusCode === '404'
       ) {
         throw new Error(
           `Storage bucket '${bucket}' has not been created in your Supabase project yet. Please run the SQL setup script in your Supabase Dashboard SQL Editor to initialize it.`
         );
       }
-      if (errMsg.toLowerCase().includes('violates row-level security policy') || (error as any).statusCode === '403') {
+      if (
+        errMsg.toLowerCase().includes('violates row-level security') ||
+        errMsg.toLowerCase().includes('unauthorized') ||
+        (error as any).statusCode === '403' ||
+        (error as any).code === 'AccessDenied'
+      ) {
         throw new Error(
           `Storage permission missing for '${bucket}'. Please run the SQL setup script in your Supabase Dashboard SQL Editor to allow direct uploads.`
         );

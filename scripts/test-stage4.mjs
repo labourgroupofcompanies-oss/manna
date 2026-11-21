@@ -5,7 +5,14 @@
  */
 
 import assert from 'node:assert';
-import { MAX_AUDIO_DURATION_SECONDS, MAX_AUDIO_SIZE_BYTES, SUPPORTED_AUDIO_MIME_TYPES } from '../src/utils/audioOptimizer.ts';
+import {
+  MAX_AUDIO_DURATION_SECONDS,
+  MAX_AUDIO_SIZE_BYTES,
+  SUPPORTED_AUDIO_MIME_TYPES,
+  OPUS_AUDIO_BITRATE,
+  calculateCompressionStats,
+  getOpusMediaRecorderOptions
+} from '../src/utils/audioOptimizer.ts';
 import { RIDER_AVATAR_OPTIONS, CUSTOMER_IMAGE_OPTIONS } from '../src/utils/imageOptimizer.ts';
 
 console.log('🧪 Starting Okada Book Stage 4 Media Architecture Verification...\n');
@@ -39,6 +46,22 @@ test('Supported audio formats include WebM, Opus, MP4, OGG, WAV, AAC', () => {
   assert(SUPPORTED_AUDIO_MIME_TYPES.includes('audio/mp4'));
   assert(SUPPORTED_AUDIO_MIME_TYPES.includes('audio/ogg'));
   assert(SUPPORTED_AUDIO_MIME_TYPES.includes('audio/wav'));
+});
+
+test('Opus voice compression is configured to 24 kbps bitrate', () => {
+  assert.strictEqual(OPUS_AUDIO_BITRATE, 24000);
+  const options = getOpusMediaRecorderOptions();
+  assert.strictEqual(options.audioBitsPerSecond, 24000);
+});
+
+test('calculateCompressionStats calculates bandwidth savings and detects Opus codec', () => {
+  // Simulate 30s voice recording: 24 kbps Opus is ~90 KB, while 24kHz raw PCM is 1.44 MB
+  const fakeOpusBlob = { size: 90 * 1024, type: 'audio/webm;codecs=opus' };
+  const stats = calculateCompressionStats(fakeOpusBlob, 30);
+  assert.strictEqual(stats.isOpus, true);
+  assert.strictEqual(stats.codec, 'Opus');
+  assert.strictEqual(stats.bitrateKbps, 24);
+  assert(stats.savingsPercent > 80, `Expected > 80% compression savings, got ${stats.savingsPercent}%`);
 });
 
 // 2. Image Optimization Presets Verification

@@ -1,0 +1,134 @@
+/* CustomerPage.css - Okada Book Navigation & Container */
+
+.customer-page-container {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  min-height: 100%;
+  position: relative;
+  background-color: #063A9B;
+}
+
+/* Customer Top Navigation Segmented Bar */
+.customer-top-bar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 10px 16px;
+  background-color: #063A9B;
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.15);
+}
+
+.customer-nav-segments {
+  display: flex;
+  background-color: rgba(255, 255, 255, 0.15);
+  backdrop-filter: blur(8px);
+  border-radius: var(--radius-full, 9999px);
+  padding: 4px;
+  gap: 4px;
+  max-width: 380px;
+  width: 100%;
+}
+
+.customer-nav-tab {
+  flex: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 8px 16px;
+  border: none;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.85);
+  font-weight: 700;
+  font-size: 0.88rem;
+  border-radius: var(--radius-full, 9999px);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+}
+
+.customer-nav-tab:hover {
+  color: #FFFFFF;
+  background-color: rgba(255, 255, 255, 0.1);
+}
+
+.customer-nav-tab.active {
+  background-color: #FFFFFF;
+  color: #063A9B;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+
+.customer-nav-tab.active .tab-icon {
+  transform: scale(1.1);
+}
+
+.tab-icon {
+  font-size: 1rem;
+  transition: transform 0.2s ease;
+}
+
+.nav-active-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background-color: #10B981;
+  box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7);
+  animation: pulseDotSmall 1.5s infinite;
+}
+
+@keyframes pulseDotSmall {
+  0% { transform: scale(0.9); box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7); }
+  70% { transform: scale(1.1); box-shadow: 0 0 0 6px rgba(16, 185, 129, 0); }
+  100% { transform: scale(0.9); box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
+}
+
+/* Track View Wrapper */
+.customer-track-sheet-wrapper {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  background-color: #063A9B;
+  min-height: calc(100vh - 120px);
+}
+
+.customer-track-content {
+  background-color: #FFFFFF;
+  border-top-left-radius: clamp(28px, 6vw, 40px);
+  border-top-right-radius: clamp(28px, 6vw, 40px);
+  margin-top: clamp(-14px, -2.5vw, -8px);
+  position: relative;
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 -8px 30px rgba(6, 58, 155, 0.12);
+  padding: clamp(22px, 5vw, 32px) clamp(16px, 4.5vw, 28px) 30px clamp(16px, 4.5vw, 28px);
+  flex: 1;
+}
+
+.track-top-actions-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 14px;
+}
+
+.btn-track-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: none;
+  border: none;
+  color: #063A9B;
+  font-size: 0.85rem;
+  font-weight: 700;
+  cursor: pointer;
+  padding: 4px 0;
+}
+
+.btn-track-back:hover {
+  text-decoration: underline;
+}

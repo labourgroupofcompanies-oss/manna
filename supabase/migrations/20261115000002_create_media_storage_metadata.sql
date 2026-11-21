@@ -46,6 +46,14 @@ CREATE POLICY "Service role full access on order_media"
   USING (true)
   WITH CHECK (true);
 
+-- Allow anonymous and authenticated users to record media metadata
+DROP POLICY IF EXISTS "Allow media metadata insert" ON public.order_media;
+CREATE POLICY "Allow media metadata insert"
+  ON public.order_media
+  FOR INSERT
+  TO anon, authenticated
+  WITH CHECK (true);
+
 -- Authenticated riders can view media for orders they have accepted or completed
 DROP POLICY IF EXISTS "Riders can view media for their accepted orders" ON public.order_media;
 CREATE POLICY "Riders can view media for their accepted orders"

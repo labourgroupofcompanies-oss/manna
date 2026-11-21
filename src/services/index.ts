@@ -3,3 +3,6 @@ export * from './orders/orderService';
 export * from './voice/voiceService';
 export * from './rider';
 export * from './storage';
+export * from './admin/adminService';
+export * from './firebase';
+

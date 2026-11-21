@@ -1,19 +1,36 @@
 import React, { useState, useId, useEffect } from 'react';
 import { useVoiceRecorder } from '../../hooks';
 import { validateGhanaPhone } from '../../utils';
-import { orderService } from '../../services';
+import { orderService, pushNotificationService } from '../../services';
 import { mediaUploadManager } from '../../services/storage/mediaUploadManager';
 import { offlineMediaQueue, type QueuedUploadItem } from '../../services/storage/offlineMediaQueue';
 import { VoiceRecorder } from '../voice/VoiceRecorder';
+import { OrderTracker } from './OrderTracker';
+import { MannaHeroBanner } from '../common/MannaHeroBanner';
 import type { Order } from '../../types';
 import './CustomerBookingForm.css';
 
-export const CustomerBookingForm: React.FC = () => {
+export interface CustomerBookingFormProps {
+  onOrderSubmitted?: (order: Order) => void;
+  onSwitchToTrack?: () => void;
+}
+
+export const CustomerBookingForm: React.FC<CustomerBookingFormProps> = ({
+  onOrderSubmitted,
+  onSwitchToTrack
+}) => {
   const phoneInputId = useId();
   const textInputId = useId();
 
-  // Contact number state
-  const [phone, setPhone] = useState('');
+  // Contact number state (remember last used phone for repeat bookings)
+  const [phone, setPhone] = useState(() => {
+    if (typeof window === 'undefined' || !window.localStorage) return '';
+    try {
+      return window.localStorage.getItem('okada_customer_phone') || '';
+    } catch {
+      return '';
+    }
+  });
   const [phoneTouched, setPhoneTouched] = useState(false);
 
   // Order mode state: 'type' or 'voice' (default: 'type')
@@ -33,6 +50,22 @@ export const CustomerBookingForm: React.FC = () => {
   const [offlineNotice, setOfflineNotice] = useState<string | null>(null);
   const [pendingOfflineItems, setPendingOfflineItems] = useState<QueuedUploadItem[]>([]);
   const [isSyncingOffline, setIsSyncingOffline] = useState(false);
+  const [onlineRidersCount, setOnlineRidersCount] = useState<number | null>(null);
+
+  // Check online rider availability on mount (and every 20s)
+  useEffect(() => {
+    let active = true;
+    const fetchCount = async () => {
+      const count = await orderService.getOnlineRidersCount();
+      if (active) setOnlineRidersCount(count);
+    };
+    fetchCount();
+    const id = setInterval(fetchCount, 20000);
+    return () => {
+      active = false;
+      clearInterval(id);
+    };
+  }, []);
 
   // Subscribe to offline queue changes
   useEffect(() => {
@@ -110,13 +143,25 @@ export const CustomerBookingForm: React.FC = () => {
         return;
       }
 
+      // Save customer phone locally for faster repeat bookings
+      const normalizedPhone = phoneValidation.formatted || phone.trim();
+      if (typeof window !== 'undefined' && window.localStorage && normalizedPhone) {
+        try {
+          window.localStorage.setItem('okada_customer_phone', normalizedPhone);
+        } catch {
+          // ignore storage quota errors
+        }
+      }
+
       // Successful order confirmed by backend
       const confirmedOrder: Order = {
         id: response.orderId || response.orderReference,
         orderReference: response.orderReference,
-        customerPhone: phoneValidation.formatted || phone.trim(),
+        bookingToken: response.bookingToken,
+        customerPhone: normalizedPhone,
         orderType: orderMode === 'type' ? 'text' : 'voice',
         requestDescription: orderMode === 'type' ? textRequest.trim() : 'Voice Order Request',
+        voiceRecordingPath: response.voiceRecordingPath || null,
         voiceNote:
           orderMode === 'voice' && voiceRecorder.audioUrl
             ? {
@@ -129,7 +174,30 @@ export const CustomerBookingForm: React.FC = () => {
         updatedAt: response.createdAt || new Date().toISOString()
       };
 
+      orderService.saveOrderToLocalHistory(confirmedOrder);
+
+      // Trigger Firebase push notification to all available online riders
+      pushNotificationService.notifyOrderCreated({
+        orderReference: confirmedOrder.orderReference,
+        bookingToken: response.bookingToken,
+        orderId: confirmedOrder.id,
+        orderType: confirmedOrder.orderType,
+        customerPhone: confirmedOrder.customerPhone,
+        orderDescription: confirmedOrder.requestDescription
+      }).catch((notifyErr) => {
+        console.warn('Push notification dispatch warning:', notifyErr);
+      });
+
+      // Attempt to link customer device FCM token to this order for live status updates
+      pushNotificationService.registerCustomerNotifications({
+        orderReference: confirmedOrder.orderReference,
+        phoneNumber: confirmedOrder.customerPhone
+      }).catch(() => {});
+
       setSubmittedOrder(confirmedOrder);
+      if (onOrderSubmitted) {
+        onOrderSubmitted(confirmedOrder);
+      }
     } catch (err: unknown) {
       const error = err as Error;
       setSubmissionError(error.message || 'An unexpected error occurred while submitting your order.');
@@ -147,63 +215,18 @@ export const CustomerBookingForm: React.FC = () => {
     voiceRecorder.resetRecording();
   };
 
-  // Render Confirmation Screen
+  // Render Confirmation & Live Tracking Screen
   if (submittedOrder) {
     return (
       <div className="okada-screen-wrapper">
-        <div className="okada-hero-banner" role="banner" aria-label="Okada Book Hero Banner" />
+        <MannaHeroBanner ariaLabel="Manna Hero Banner" />
         <div className="okada-white-sheet order-success-sheet">
-          <div className="success-icon-badge">✓</div>
-          <h2 className="success-title">Ride Requested!</h2>
-          <p className="success-subtitle">
-            Your ride has been registered with Okada dispatch.
-          </p>
-
-          <div className="order-summary-box">
-            <div className="summary-row">
-              <span className="summary-label">Order Ref:</span>
-              <span className="summary-value order-id-pill">{submittedOrder.orderReference}</span>
-            </div>
-            <div className="summary-row">
-              <span className="summary-label">Contact:</span>
-              <span className="summary-value">{submittedOrder.customerPhone}</span>
-            </div>
-            <div className="summary-row">
-              <span className="summary-label">Order Method:</span>
-              <span className="summary-value">
-                {submittedOrder.orderType === 'voice' ? '🎙️ Voice Note' : '📝 Type Order'}
-              </span>
-            </div>
-            <div className="summary-row">
-              <span className="summary-label">Status:</span>
-              <span className="summary-value status-badge-pending">
-                {submittedOrder.status.toUpperCase()}
-              </span>
-            </div>
-            {submittedOrder.orderType === 'voice' && submittedOrder.voiceNote?.audioUrl ? (
-              <div className="summary-voice-preview">
-                <span className="summary-label">Audio Note:</span>
-                <audio
-                  src={submittedOrder.voiceNote.audioUrl}
-                  controls
-                  className="summary-audio-player"
-                />
-              </div>
-            ) : (
-              <div className="summary-text-preview">
-                <span className="summary-label">Request:</span>
-                <p className="summary-text-body">{submittedOrder.requestDescription}</p>
-              </div>
-            )}
-          </div>
-
-          <button
-            type="button"
-            className="btn-order-ride btn-book-another"
-            onClick={handleResetForNewRide}
-          >
-            <span>Book Another Ride</span>
-          </button>
+          <OrderTracker
+            order={submittedOrder}
+            onOrderUpdated={(updated) => setSubmittedOrder(updated)}
+            onBookAnother={handleResetForNewRide}
+            onTrackAnother={onSwitchToTrack}
+          />
 
           {/* Bottom Skyline */}
           <div className="accra-skyline-footer" aria-hidden="true" />
@@ -214,11 +237,57 @@ export const CustomerBookingForm: React.FC = () => {
 
   return (
     <div className="okada-screen-wrapper">
-      {/* 1. Top Hero Section with Logo and Rider */}
-      <div className="okada-hero-banner" role="banner" aria-label="Okada Book Branding Header" />
+      {/* 1. Top Hero Section with Manna Logo and Rider */}
+      <MannaHeroBanner ariaLabel="Manna Branding Header" />
 
       {/* 2. White Card Sheet overlapping hero */}
       <div className="okada-white-sheet">
+        {onlineRidersCount !== null && (
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '8px',
+              padding: '8px 12px',
+              marginBottom: '10px',
+              borderRadius: '10px',
+              fontSize: '0.82rem',
+              fontWeight: 600,
+              background: onlineRidersCount > 0 ? '#ECFDF5' : '#FFFBEB',
+              color: onlineRidersCount > 0 ? '#065F46' : '#92400E',
+              border: `1px solid ${onlineRidersCount > 0 ? '#A7F3D0' : '#FDE68A'}`
+            }}
+            role="status"
+          >
+            <span
+              style={{
+                width: 8,
+                height: 8,
+                borderRadius: '50%',
+                background: onlineRidersCount > 0 ? '#10B981' : '#F59E0B',
+                display: 'inline-block'
+              }}
+            />
+            {onlineRidersCount > 0
+              ? `${onlineRidersCount} Okada ${onlineRidersCount === 1 ? 'rider' : 'riders'} online nearby`
+              : 'No riders online right now — you can still place a request'}
+          </div>
+        )}
+
+        {onSwitchToTrack && (
+          <div className="quick-track-banner">
+            <span className="quick-track-text">Already placed a ride request?</span>
+            <button
+              type="button"
+              className="quick-track-btn"
+              onClick={onSwitchToTrack}
+            >
+              Track Status &rarr;
+            </button>
+          </div>
+        )}
+
         <form onSubmit={handleSubmit} noValidate className="booking-form-content">
           {/* A. Your Contact Section */}
           <div className="contact-section">
@@ -401,17 +470,38 @@ export const CustomerBookingForm: React.FC = () => {
             </div>
           )}
 
-          {/* Live Upload Progress Indicator */}
-          {isSubmitting && uploadPercentage !== null && (
-            <div className="upload-progress-box" aria-live="polite">
-              <div className="upload-progress-labels">
-                <span>Uploading voice note...</span>
-                <span>{uploadPercentage}%</span>
+          {/* Professional Live Dispatch Progress Card */}
+          {isSubmitting && (
+            <div className="dispatch-progress-card" aria-live="polite">
+              <div className="dispatch-progress-header">
+                <div className="dispatch-radar-circle">
+                  <div className="radar-ripple" />
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M12 2a10 10 0 1 0 10 10" />
+                    <circle cx="12" cy="12" r="3" />
+                  </svg>
+                </div>
+                <div className="dispatch-text-group">
+                  <span className="dispatch-title">
+                    {uploadPercentage !== null && uploadPercentage < 100
+                      ? 'Preparing Voice Request'
+                      : 'Connecting with Local Riders'}
+                  </span>
+                  <span className="dispatch-sub">
+                    {uploadPercentage !== null && uploadPercentage < 100
+                      ? 'Uploading audio instructions...'
+                      : 'Sending request to verified riders in Kadjebi...'}
+                  </span>
+                </div>
+                {uploadPercentage !== null && (
+                  <span className="dispatch-percentage-badge">{uploadPercentage}%</span>
+                )}
               </div>
-              <div className="upload-progress-track">
+
+              <div className="dispatch-progress-track">
                 <div
-                  className="upload-progress-bar"
-                  style={{ width: `${uploadPercentage}%` }}
+                  className={`dispatch-progress-bar ${uploadPercentage === null ? 'indeterminate' : ''}`}
+                  style={{ width: uploadPercentage !== null ? `${uploadPercentage}%` : '70%' }}
                 />
               </div>
             </div>
@@ -470,6 +560,16 @@ export const CustomerBookingForm: React.FC = () => {
               </span>
               <span className="trust-badge-text">Safe &bull; Fast &bull; Reliable</span>
             </div>
+            <p
+              style={{
+                margin: '6px 0 0',
+                fontSize: '0.78rem',
+                color: '#64748B',
+                textAlign: 'center'
+              }}
+            >
+              Fare is agreed directly with your rider.
+            </p>
             {/* Curved Blue Swoosh Arc */}
             <div className="trust-arc-wrap" aria-hidden="true">
               <svg width="120" height="10" viewBox="0 0 120 10" fill="none">

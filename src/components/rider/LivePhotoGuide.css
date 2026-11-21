@@ -1,0 +1,532 @@
+/* Live Photo Guide Modal & Camera Interface */
+
+.live-photo-modal-backdrop {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(15, 23, 42, 0.85);
+  backdrop-filter: blur(4px);
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  box-sizing: border-box;
+}
+
+.live-photo-card {
+  background: #FFFFFF;
+  border-radius: 20px;
+  width: 100%;
+  max-width: 460px;
+  max-height: 94vh;
+  overflow-y: auto;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.25), 0 10px 10px -5px rgba(0, 0, 0, 0.15);
+  display: flex;
+  flex-direction: column;
+  position: relative;
+}
+
+.live-photo-header {
+  padding: 16px 20px 12px;
+  border-bottom: 1px solid #E2E8F0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.live-photo-title-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.live-photo-title {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: #0F172A;
+  margin: 0;
+}
+
+.live-photo-subtitle {
+  font-size: 0.78rem;
+  color: #64748B;
+  margin: 0;
+}
+
+.live-photo-close-btn {
+  background: none;
+  border: none;
+  color: #64748B;
+  cursor: pointer;
+  padding: 6px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.15s;
+}
+
+.live-photo-close-btn:hover {
+  background: #F1F5F9;
+  color: #0F172A;
+}
+
+/* Viewport / Video Area */
+.camera-viewport-wrap {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 1 / 1;
+  background: #000000;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.camera-video-stream {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transform: scaleX(-1); /* Mirror selfie */
+}
+
+.camera-captured-preview {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* Framing Overlay Guide */
+.camera-frame-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  pointer-events: none;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Oval Frame */
+.oval-guide-cutout {
+  width: 68%;
+  height: 74%;
+  border-radius: 50% / 46%;
+  border: 3px dashed rgba(255, 255, 255, 0.85);
+  box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.42);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  transition: border-color 0.2s ease;
+}
+
+.oval-guide-cutout.good-light {
+  border-color: #22C55E;
+}
+
+.oval-guide-cutout.warn-light {
+  border-color: #F59E0B;
+}
+
+/* Guide Target Crosshair / Center Notch */
+.guide-crosshair-h {
+  position: absolute;
+  width: 18px;
+  height: 2px;
+  background-color: rgba(255, 255, 255, 0.4);
+}
+
+.guide-crosshair-v {
+  position: absolute;
+  width: 2px;
+  height: 18px;
+  background-color: rgba(255, 255, 255, 0.4);
+}
+
+/* Countdown Display */
+.countdown-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.55);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  z-index: 10;
+}
+
+.countdown-number {
+  font-size: 5rem;
+  font-weight: 800;
+  color: #FFFFFF;
+  text-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+  animation: countdownPulse 1s ease-in-out infinite;
+}
+
+.countdown-hint {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: #F8FAFC;
+}
+
+@keyframes countdownPulse {
+  0% { transform: scale(1.2); opacity: 0.7; }
+  50% { transform: scale(1); opacity: 1; }
+  100% { transform: scale(0.9); opacity: 0.8; }
+}
+
+/* Live Lighting Feedback Banner */
+.lighting-badge {
+  position: absolute;
+  top: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 6px 14px;
+  border-radius: 999px;
+  font-size: 0.76rem;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+  backdrop-filter: blur(8px);
+  z-index: 5;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
+}
+
+.lighting-badge.good {
+  background: rgba(22, 101, 52, 0.88);
+  color: #DCFCE7;
+}
+
+.lighting-badge.dark {
+  background: rgba(146, 64, 14, 0.88);
+  color: #FEF3C7;
+}
+
+.lighting-badge.bright {
+  background: rgba(180, 83, 9, 0.88);
+  color: #FEF3C7;
+}
+
+/* Guidelines checklist beneath camera */
+.live-photo-body {
+  padding: 16px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.guide-checklist {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  background: #F8FAFC;
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: 1px solid #E2E8F0;
+}
+
+.checklist-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: #334155;
+}
+
+.checklist-icon {
+  flex-shrink: 0;
+  color: #063A9B;
+}
+
+/* Action Controls */
+.live-photo-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.btn-snap-photo {
+  background-color: #063A9B;
+  color: #FFFFFF;
+  border: none;
+  border-radius: 12px;
+  padding: 12px 18px;
+  font-size: 0.95rem;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  transition: all 0.15s ease;
+  box-shadow: 0 2px 6px rgba(6, 58, 155, 0.25);
+}
+
+.btn-snap-photo:hover:not(:disabled) {
+  background-color: #052F80;
+}
+
+.btn-snap-photo:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.capture-options-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  font-size: 0.78rem;
+  color: #64748B;
+}
+
+.countdown-toggle-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  user-select: none;
+}
+
+/* Review / Approval Buttons */
+.review-actions-row {
+  display: grid;
+  grid-template-columns: 1fr 1.3fr;
+  gap: 10px;
+}
+
+.btn-retake {
+  background: #F1F5F9;
+  color: #334155;
+  border: 1px solid #CBD5E1;
+  border-radius: 12px;
+  padding: 12px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+
+.btn-retake:hover {
+  background: #E2E8F0;
+}
+
+.btn-accept-photo {
+  background: #16A34A;
+  color: #FFFFFF;
+  border: none;
+  border-radius: 12px;
+  padding: 12px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  box-shadow: 0 2px 6px rgba(22, 163, 74, 0.25);
+}
+
+.btn-accept-photo:hover {
+  background: #15803D;
+}
+
+/* Camera Error / Fallback View */
+.camera-error-wrap {
+  padding: 24px 16px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 12px;
+  background: #FEF2F2;
+  border-radius: 12px;
+  border: 1px solid #FECACA;
+}
+
+.camera-error-title {
+  font-size: 0.92rem;
+  font-weight: 700;
+  color: #991B1B;
+  margin: 0;
+}
+
+.camera-error-desc {
+  font-size: 0.8rem;
+  color: #7F1D1D;
+  margin: 0;
+  line-height: 1.4;
+}
+
+.btn-fallback-camera {
+  margin-top: 6px;
+  background: #063A9B;
+  color: #FFFFFF;
+  padding: 10px 16px;
+  border-radius: 10px;
+  font-size: 0.84rem;
+  font-weight: 600;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* Rider Registration Form Profile Photo Field Enhancements */
+.required-star {
+  color: #E11D48;
+  margin-left: 2px;
+}
+
+.required-badge {
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: #E11D48;
+  background: #FFE4E6;
+  padding: 2px 7px;
+  border-radius: 6px;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.live-photo-trigger-card {
+  border: 1.5px dashed #CBD5E1;
+  border-radius: 14px;
+  background: #F8FAFC;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 10px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.live-photo-trigger-card:hover {
+  border-color: #063A9B;
+  background: #F1F5F9;
+}
+
+.live-photo-trigger-card.has-photo {
+  border: 1.5px solid #BBF7D0;
+  background: #F0FDF4;
+}
+
+.camera-icon-badge {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: #EFF6FF;
+  color: #063A9B;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.live-photo-trigger-title {
+  font-size: 0.92rem;
+  font-weight: 700;
+  color: #0F172A;
+  margin: 0;
+}
+
+.live-photo-trigger-hint {
+  font-size: 0.78rem;
+  color: #64748B;
+  margin: 0;
+  line-height: 1.35;
+}
+
+/* Captured Photo Card in Form */
+.photo-confirmed-card {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  width: 100%;
+}
+
+.photo-confirmed-avatar-wrap {
+  position: relative;
+  width: 68px;
+  height: 68px;
+  flex-shrink: 0;
+}
+
+.photo-confirmed-avatar {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 2.5px solid #22C55E;
+}
+
+.photo-confirmed-check {
+  position: absolute;
+  bottom: 0;
+  right: 0;
+  background: #16A34A;
+  color: #FFFFFF;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 2px solid #FFFFFF;
+}
+
+.photo-confirmed-details {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  text-align: left;
+}
+
+.photo-confirmed-title {
+  font-size: 0.88rem;
+  font-weight: 700;
+  color: #166534;
+  margin: 0;
+}
+
+.photo-confirmed-sub {
+  font-size: 0.76rem;
+  color: #15803D;
+  margin: 0;
+}
+
+.btn-retake-compact {
+  background: #FFFFFF;
+  border: 1px solid #CBD5E1;
+  border-radius: 8px;
+  padding: 6px 10px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: #475569;
+  cursor: pointer;
+  align-self: flex-start;
+  margin-top: 4px;
+  transition: all 0.15s ease;
+}
+
+.btn-retake-compact:hover {
+  background: #F1F5F9;
+  color: #0F172A;
+  border-color: #94A3B8;
+}

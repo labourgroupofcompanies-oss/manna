@@ -155,9 +155,9 @@ BEGIN
   END IF;
 
   -- B. Resolve rider record from public.riders using auth.uid()
-  SELECT id, is_available INTO v_rider_id, v_is_available
-  FROM public.riders
-  WHERE user_id = v_caller_uid;
+  SELECT r.id, r.is_available INTO v_rider_id, v_is_available
+  FROM public.riders r
+  WHERE r.user_id = v_caller_uid;
 
   IF v_rider_id IS NULL THEN
     RETURN jsonb_build_object('success', false, 'error', 'No registered rider profile found for this account.');
@@ -279,9 +279,9 @@ BEGIN
   END IF;
 
   -- Only online riders with an active profile can see pending requests
-  SELECT id, is_available INTO v_rider_id, v_is_available
-  FROM public.riders
-  WHERE user_id = v_caller_uid;
+  SELECT r.id, r.is_available INTO v_rider_id, v_is_available
+  FROM public.riders r
+  WHERE r.user_id = v_caller_uid;
 
   IF v_rider_id IS NULL OR v_is_available IS NOT TRUE THEN
     RETURN;

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { RiderAuth, RiderDashboard } from '../../components';
 import { riderService } from '../../services';
 import type { RiderProfile } from '../../types';
+import './RiderPage.css';
 
 export const RiderPage: React.FC = () => {
   const [currentRider, setCurrentRider] = useState<RiderProfile | null>(null);
@@ -39,20 +40,40 @@ export const RiderPage: React.FC = () => {
 
   if (checkingAuth) {
     return (
-      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '300px', gap: '12px' }}>
-        <span style={{ fontSize: '2rem' }}>🏍️</span>
-        <p style={{ color: '#64748B', fontSize: '0.9rem' }}>Loading rider terminal...</p>
+      <div className="rider-page-shell">
+        <header className="rider-top-nav-bar">
+          <div className="rider-brand-lockup">
+            <img src="/manna-logo.png" alt="Manna" className="rider-brand-logo" />
+            <span className="rider-nav-tag">Rider</span>
+          </div>
+        </header>
+
+        <div className="rider-loading-screen">
+          <div className="rider-spinner" />
+          <p className="rider-loading-text">Loading...</p>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="rider-page-view" style={{ width: '100%', padding: 'clamp(14px, 3.5vw, 20px)' }}>
-      {currentRider ? (
-        <RiderDashboard rider={currentRider} onLogout={handleLogout} />
-      ) : (
-        <RiderAuth onAuthSuccess={handleAuthSuccess} />
+    <div className="rider-page-shell">
+      {!currentRider && (
+        <header className="rider-top-nav-bar">
+          <div className="rider-brand-lockup">
+            <img src="/manna-logo.png" alt="Manna" className="rider-brand-logo" />
+            <span className="rider-nav-tag">Rider Partner</span>
+          </div>
+        </header>
       )}
+
+      <div className={`rider-page-body ${currentRider ? 'authenticated' : ''}`}>
+        {currentRider ? (
+          <RiderDashboard rider={currentRider} onLogout={handleLogout} />
+        ) : (
+          <RiderAuth onAuthSuccess={handleAuthSuccess} />
+        )}
+      </div>
     </div>
   );
 };

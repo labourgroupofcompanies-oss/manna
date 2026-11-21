@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
-import { riderService } from '../../services';
+import { riderService, pushNotificationService } from '../../services';
 import { validateGhanaPhone } from '../../utils';
 import type { RiderProfile, RiderRegistrationPayload, RiderLoginPayload } from '../../types';
+import { LivePhotoGuide } from './LivePhotoGuide';
 import './RiderAuth.css';
 
 interface RiderAuthProps {
@@ -14,30 +15,37 @@ export const RiderAuth: React.FC<RiderAuthProps> = ({ onAuthSuccess }) => {
   // Login form state
   const [loginPhone, setLoginPhone] = useState('');
   const [loginPassword, setLoginPassword] = useState('');
+  const [showLoginPassword, setShowLoginPassword] = useState(false);
 
   // Register form state
   const [regFullName, setRegFullName] = useState('');
   const [regPhone, setRegPhone] = useState('');
   const [regPassword, setRegPassword] = useState('');
+  const [showRegPassword, setShowRegPassword] = useState(false);
   const [regBikePlate, setRegBikePlate] = useState('');
   const [regBikeModel, setRegBikeModel] = useState('');
   const [regBikeColour, setRegBikeColour] = useState('');
-  const [regOperatingArea, setRegOperatingArea] = useState('Circle / Kaneshie');
+  const [regOperatingArea, setRegOperatingArea] = useState('Kadjebi-Town');
   const [profilePhoto, setProfilePhoto] = useState<File | null>(null);
+  const [photoPreviewUrl, setPhotoPreviewUrl] = useState<string | null>(null);
+  const [showLivePhotoGuide, setShowLivePhotoGuide] = useState(false);
 
   // Status & Feedback
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [regSuccess, setRegSuccess] = useState(false);
 
-  // 1. Handle Rider Login
-  const handleLoginSubmit = async (e: React.FormEvent) => {
+  // Phone validation
+  const loginValidation = validateGhanaPhone(loginPhone);
+  const regValidation = validateGhanaPhone(regPhone);
+
+  // 1. Handle Login
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMessage(null);
 
-    const phoneValidation = validateGhanaPhone(loginPhone);
-    if (!phoneValidation.isValid) {
-      setErrorMessage(phoneValidation.error || 'Please enter a valid 10-digit Ghanaian phone number.');
+    if (!loginValidation.isValid) {
+      setErrorMessage(loginValidation.error || 'Please enter a valid Ghanaian phone number.');
       return;
     }
 
@@ -47,45 +55,43 @@ export const RiderAuth: React.FC<RiderAuthProps> = ({ onAuthSuccess }) => {
     }
 
     setLoading(true);
-
     try {
       const payload: RiderLoginPayload = {
-        phoneNumber: loginPhone,
+        phoneNumber: loginValidation.formatted || loginPhone.trim(),
         password: loginPassword
       };
 
       const result = await riderService.loginRider(payload);
 
       if (!result.success || !result.rider) {
-        setErrorMessage(result.error || 'Login failed. Please check your phone number and password.');
+        setErrorMessage(result.error || 'Invalid phone number or password.');
         return;
       }
 
+      pushNotificationService.registerRiderNotifications(result.rider.id).catch(() => {});
       onAuthSuccess(result.rider);
     } finally {
       setLoading(false);
     }
   };
 
-  // 2. Handle Rider Registration
-  const handleRegisterSubmit = async (e: React.FormEvent) => {
+  // 2. Handle Registration
+  const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMessage(null);
 
-    // Validate inputs
     if (!regFullName.trim()) {
       setErrorMessage('Please enter your full name.');
       return;
     }
 
-    const phoneValidation = validateGhanaPhone(regPhone);
-    if (!phoneValidation.isValid) {
-      setErrorMessage(phoneValidation.error || 'Please enter a valid 10-digit Ghanaian phone number.');
+    if (!regValidation.isValid) {
+      setErrorMessage(regValidation.error || 'Please enter a valid Ghanaian phone number.');
       return;
     }
 
     if (regPassword.length < 6) {
-      setErrorMessage('Password must be at least 6 characters long.');
+      setErrorMessage('Password must be at least 6 characters.');
       return;
     }
 
@@ -95,16 +101,20 @@ export const RiderAuth: React.FC<RiderAuthProps> = ({ onAuthSuccess }) => {
     }
 
     if (!regBikeModel.trim()) {
-      setErrorMessage('Please enter your motorcycle brand/model (e.g. Bajaj Boxer 150).');
+      setErrorMessage('Please enter your motorcycle model (e.g. Boxer 150).');
+      return;
+    }
+
+    if (!profilePhoto) {
+      setErrorMessage('Profile photo is required. Please capture a clear live photo of your face.');
       return;
     }
 
     setLoading(true);
-
     try {
       const payload: RiderRegistrationPayload = {
         fullName: regFullName.trim(),
-        phoneNumber: regPhone.trim(),
+        phoneNumber: regValidation.formatted || regPhone.trim(),
         password: regPassword,
         motorcycleRegistration: regBikePlate.trim().toUpperCase(),
         motorcycleModel: regBikeModel.trim(),
@@ -116,9 +126,15 @@ export const RiderAuth: React.FC<RiderAuthProps> = ({ onAuthSuccess }) => {
       const result = await riderService.registerRider(payload);
 
       if (!result.success || !result.rider) {
-        setErrorMessage(result.error || 'Registration could not be completed.');
+        setErrorMessage(result.error || 'Could not complete registration.');
         return;
       }
+
+      pushNotificationService.notifyRiderRegistered({
+        fullName: result.rider.fullName,
+        phoneNumber: result.rider.phoneNumber,
+        operatingArea: result.rider.operatingArea
+      }).catch(() => {});
 
       setRegSuccess(true);
     } finally {
@@ -126,133 +142,163 @@ export const RiderAuth: React.FC<RiderAuthProps> = ({ onAuthSuccess }) => {
     }
   };
 
-  // 3. Success View after registration
   if (regSuccess) {
     return (
-      <div className="rider-auth-card rider-reg-success-card">
-        <div className="rider-success-badge" aria-hidden="true">✓</div>
-        <h2 className="rider-auth-title">Registration Successful!</h2>
-        <p className="rider-auth-desc">
-          Your rider account has been created. You can now log in with your phone number and password to access the dispatch terminal.
-        </p>
-        <button
-          type="button"
-          className="btn btn-primary btn-full-width"
-          onClick={() => {
-            setRegSuccess(false);
-            setAuthMode('login');
-            setLoginPhone(regPhone);
-          }}
-        >
-          Go to Rider Login
-        </button>
+      <div className="rider-auth-box">
+        <div className="reg-success-view">
+          <div className="success-check-circle">
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <polyline points="20 6 9 17 4 12" />
+            </svg>
+          </div>
+          <h2 className="auth-title">Account Created</h2>
+          <p className="auth-subtitle">
+            Your rider account is ready. Sign in to start taking orders.
+          </p>
+          <button
+            type="button"
+            className="btn-auth-primary"
+            onClick={() => {
+              setRegSuccess(false);
+              setAuthMode('login');
+              setLoginPhone(regPhone);
+            }}
+          >
+            Sign In Now
+          </button>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="rider-auth-card">
-      {/* Brand Header */}
-      <div className="rider-auth-header">
-        <div className="rider-auth-logo">🏍️</div>
-        <div>
-          <h2 className="rider-auth-title">Rider Terminal</h2>
-          <p className="rider-auth-tagline">Ride Easy... Get There Fast!</p>
-        </div>
+    <div className="rider-auth-box">
+      {/* Simple Header */}
+      <div className="auth-header">
+        <h2 className="auth-title">{authMode === 'login' ? 'Rider Sign In' : 'New Rider Sign Up'}</h2>
+        <p className="auth-subtitle">
+          {authMode === 'login'
+            ? 'Sign in to start taking orders.'
+            : 'Register to start delivering.'}
+        </p>
       </div>
 
-      {/* Tabs Switcher: Login / Register */}
-      <div className="rider-auth-tabs" role="tablist">
+      {/* Pill Switcher */}
+      <div className="auth-pill-switcher" role="tablist">
         <button
           type="button"
           role="tab"
           aria-selected={authMode === 'login'}
-          className={`rider-tab-btn ${authMode === 'login' ? 'active' : ''}`}
+          className={`pill-switch-btn ${authMode === 'login' ? 'active' : ''}`}
           onClick={() => {
             setAuthMode('login');
             setErrorMessage(null);
           }}
         >
-          Rider Login
+          Sign In
         </button>
         <button
           type="button"
           role="tab"
           aria-selected={authMode === 'register'}
-          className={`rider-tab-btn ${authMode === 'register' ? 'active' : ''}`}
+          className={`pill-switch-btn ${authMode === 'register' ? 'active' : ''}`}
           onClick={() => {
             setAuthMode('register');
             setErrorMessage(null);
           }}
         >
-          New Registration
+          Register
         </button>
       </div>
 
-      {/* Error Banner */}
+      {/* Error Alert */}
       {errorMessage && (
-        <div className="rider-error-banner" role="alert">
-          <span className="error-icon" aria-hidden="true">⚠️</span>
-          <p>{errorMessage}</p>
+        <div className="auth-error-box" role="alert">
+          {errorMessage}
         </div>
       )}
 
       {/* LOGIN FORM */}
       {authMode === 'login' && (
-        <form onSubmit={handleLoginSubmit} className="rider-form">
-          <div className="form-group">
-            <label htmlFor="login-phone" className="form-label">
-              Phone Number
+        <form onSubmit={handleLogin} className="auth-form-fields" noValidate>
+          <div className="auth-field">
+            <label htmlFor="login-phone-input" className="field-label">
+              <span>Phone Number</span>
+              {loginPhone && loginValidation.carrier && (
+                <span className="carrier-tag">{loginValidation.carrier}</span>
+              )}
             </label>
-            <input
-              id="login-phone"
-              type="tel"
-              inputMode="tel"
-              autoComplete="tel"
-              placeholder="e.g. 0245660622"
-              value={loginPhone}
-              onChange={(e) => setLoginPhone(e.target.value)}
-              className="input-control"
-              required
-            />
-            <span className="field-hint">Your 10-digit registered Ghanaian phone number</span>
+            <div className="phone-input-row">
+              <span className="country-code-pill">+233</span>
+              <input
+                id="login-phone-input"
+                type="tel"
+                inputMode="tel"
+                autoComplete="tel"
+                placeholder="024 123 4567"
+                value={loginPhone}
+                onChange={(e) => setLoginPhone(e.target.value)}
+                className="input-simple"
+                required
+              />
+            </div>
           </div>
 
-          <div className="form-group">
-            <label htmlFor="login-password" className="form-label">
-              Password
+          <div className="auth-field">
+            <label htmlFor="login-pwd-input" className="field-label">
+              <span>Password</span>
             </label>
-            <input
-              id="login-password"
-              type="password"
-              autoComplete="current-password"
-              placeholder="Enter your password"
-              value={loginPassword}
-              onChange={(e) => setLoginPassword(e.target.value)}
-              className="input-control"
-              required
-            />
+            <div className="password-input-row">
+              <input
+                id="login-pwd-input"
+                type={showLoginPassword ? 'text' : 'password'}
+                autoComplete="current-password"
+                placeholder="Enter password"
+                value={loginPassword}
+                onChange={(e) => setLoginPassword(e.target.value)}
+                className="input-simple"
+                required
+              />
+              <button
+                type="button"
+                className="eye-btn"
+                onClick={() => setShowLoginPassword(!showLoginPassword)}
+                aria-label={showLoginPassword ? 'Hide password' : 'Show password'}
+              >
+                {showLoginPassword ? (
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24" />
+                    <line x1="1" y1="1" x2="23" y2="23" />
+                  </svg>
+                ) : (
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+                    <circle cx="12" cy="12" r="3" />
+                  </svg>
+                )}
+              </button>
+            </div>
           </div>
 
           <button
             type="submit"
             disabled={loading}
-            className="btn btn-primary btn-full-width rider-submit-btn"
+            className="btn-auth-primary"
           >
-            {loading ? 'Authenticating...' : 'Log In to Rider Dashboard'}
+            {loading ? 'Signing in...' : 'Sign In'}
           </button>
 
-          <p className="rider-toggle-note">
-            New rider?{' '}
+          <p className="auth-switch-text">
+            Don't have an account?{' '}
             <button
               type="button"
-              className="link-btn"
+              className="auth-switch-link"
               onClick={() => {
                 setAuthMode('register');
                 setErrorMessage(null);
               }}
             >
-              Register your motorcycle here
+              Register here
             </button>
           </p>
         </form>
@@ -260,162 +306,236 @@ export const RiderAuth: React.FC<RiderAuthProps> = ({ onAuthSuccess }) => {
 
       {/* REGISTRATION FORM */}
       {authMode === 'register' && (
-        <form onSubmit={handleRegisterSubmit} className="rider-form">
-          <div className="form-group">
-            <label htmlFor="reg-name" className="form-label">
-              Full Name <span className="req">*</span>
+        <form onSubmit={handleRegister} className="auth-form-fields" noValidate>
+          <div className="auth-field">
+            <label htmlFor="reg-name-input" className="field-label">
+              Full Name
             </label>
             <input
-              id="reg-name"
+              id="reg-name-input"
               type="text"
               autoComplete="name"
               placeholder="e.g. Kwame Mensah"
               value={regFullName}
               onChange={(e) => setRegFullName(e.target.value)}
-              className="input-control"
+              className="input-simple"
               required
             />
           </div>
 
-          <div className="form-group">
-            <label htmlFor="reg-phone" className="form-label">
-              Phone Number <span className="req">*</span>
+          <div className="auth-field">
+            <label htmlFor="reg-phone-input" className="field-label">
+              <span>Phone Number</span>
+              {regPhone && regValidation.carrier && (
+                <span className="carrier-tag">{regValidation.carrier}</span>
+              )}
+            </label>
+            <div className="phone-input-row">
+              <span className="country-code-pill">+233</span>
+              <input
+                id="reg-phone-input"
+                type="tel"
+                inputMode="tel"
+                autoComplete="tel"
+                placeholder="024 123 4567"
+                value={regPhone}
+                onChange={(e) => setRegPhone(e.target.value)}
+                className="input-simple"
+                required
+              />
+            </div>
+          </div>
+
+          <div className="auth-field">
+            <label htmlFor="reg-pwd-input" className="field-label">
+              Password (min 6 characters)
+            </label>
+            <div className="password-input-row">
+              <input
+                id="reg-pwd-input"
+                type={showRegPassword ? 'text' : 'password'}
+                autoComplete="new-password"
+                placeholder="Create a password"
+                value={regPassword}
+                onChange={(e) => setRegPassword(e.target.value)}
+                className="input-simple"
+                required
+              />
+              <button
+                type="button"
+                className="eye-btn"
+                onClick={() => setShowRegPassword(!showRegPassword)}
+                aria-label={showRegPassword ? 'Hide password' : 'Show password'}
+              >
+                {showRegPassword ? (
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24" />
+                    <line x1="1" y1="1" x2="23" y2="23" />
+                  </svg>
+                ) : (
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+                    <circle cx="12" cy="12" r="3" />
+                  </svg>
+                )}
+              </button>
+            </div>
+          </div>
+
+          <div className="auth-field">
+            <label htmlFor="reg-plate-input" className="field-label">
+              Number Plate
             </label>
             <input
-              id="reg-phone"
-              type="tel"
-              inputMode="tel"
-              autoComplete="tel"
-              placeholder="e.g. 0245660622"
-              value={regPhone}
-              onChange={(e) => setRegPhone(e.target.value)}
-              className="input-control"
-              required
-            />
-            <span className="field-hint">Must be a valid Ghanaian mobile number</span>
-          </div>
-
-          <div className="form-group">
-            <label htmlFor="reg-password" className="form-label">
-              Create Password <span className="req">*</span>
-            </label>
-            <input
-              id="reg-password"
-              type="password"
-              autoComplete="new-password"
-              placeholder="Minimum 6 characters"
-              value={regPassword}
-              onChange={(e) => setRegPassword(e.target.value)}
-              className="input-control"
+              id="reg-plate-input"
+              type="text"
+              placeholder="e.g. M-24-GR-1042"
+              value={regBikePlate}
+              onChange={(e) => setRegBikePlate(e.target.value.toUpperCase())}
+              className="input-simple"
+              style={{ textTransform: 'uppercase', letterSpacing: '0.04em' }}
               required
             />
           </div>
 
-          <div className="form-row-2">
-            <div className="form-group">
-              <label htmlFor="reg-plate" className="form-label">
-                Number Plate <span className="req">*</span>
+          <div className="form-cols-2">
+            <div className="auth-field">
+              <label htmlFor="reg-model-input" className="field-label">
+                Motorcycle Model
               </label>
               <input
-                id="reg-plate"
+                id="reg-model-input"
                 type="text"
-                placeholder="e.g. M-24-GR-1042"
-                value={regBikePlate}
-                onChange={(e) => setRegBikePlate(e.target.value)}
-                className="input-control uppercase-input"
+                placeholder="e.g. Boxer 150"
+                value={regBikeModel}
+                onChange={(e) => setRegBikeModel(e.target.value)}
+                className="input-simple"
                 required
               />
             </div>
 
-            <div className="form-group">
-              <label htmlFor="reg-colour" className="form-label">
-                Motorcycle Colour
+            <div className="auth-field">
+              <label htmlFor="reg-colour-input" className="field-label">
+                Colour
               </label>
               <input
-                id="reg-colour"
+                id="reg-colour-input"
                 type="text"
                 placeholder="e.g. Black"
                 value={regBikeColour}
                 onChange={(e) => setRegBikeColour(e.target.value)}
-                className="input-control"
+                className="input-simple"
               />
             </div>
           </div>
 
-          <div className="form-group">
-            <label htmlFor="reg-model" className="form-label">
-              Motorcycle Brand / Model <span className="req">*</span>
-            </label>
-            <input
-              id="reg-model"
-              type="text"
-              placeholder="e.g. Bajaj Boxer 150 / Haojue 125"
-              value={regBikeModel}
-              onChange={(e) => setRegBikeModel(e.target.value)}
-              className="input-control"
-              required
-            />
-          </div>
-
-          <div className="form-group">
-            <label htmlFor="reg-area" className="form-label">
-              Primary Operating Area <span className="req">*</span>
+          <div className="auth-field">
+            <label htmlFor="reg-area-select" className="field-label">
+              Primary Area
             </label>
             <select
-              id="reg-area"
+              id="reg-area-select"
               value={regOperatingArea}
               onChange={(e) => setRegOperatingArea(e.target.value)}
-              className="input-control select-control"
+              className="input-simple"
+              style={{ cursor: 'pointer' }}
             >
-              <option value="Circle / Kaneshie / Odorkor">Circle / Kaneshie / Odorkor</option>
-              <option value="Madina / Adenta / Legon">Madina / Adenta / Legon</option>
-              <option value="Lapaz / Achimota / Abeka">Lapaz / Achimota / Abeka</option>
-              <option value="Osu / Cantonments / Labadi">Osu / Cantonments / Labadi</option>
-              <option value="Tema / Ashaiman / Spintex">Tema / Ashaiman / Spintex</option>
-              <option value="Kumasi Central / Kejetia">Kumasi Central / Kejetia</option>
-              <option value="Greater Accra (All Zones)">Greater Accra (All Zones)</option>
+              <option value="Kadjebi-Town">Kadjebi-Town</option>
+              <option value="Border">Border</option>
+              <option value="Kadjebi District">Kadjebi District</option>
             </select>
           </div>
 
-          <div className="form-group">
-            <label htmlFor="reg-photo" className="form-label">
-              Profile Photo (Optional)
+          <div className="auth-field">
+            <label className="field-label">
+              <span>
+                Profile Photo <span className="required-star">*</span>
+              </span>
+              <span className="required-badge">Required</span>
             </label>
-            <input
-              id="reg-photo"
-              type="file"
-              accept="image/*"
-              onChange={(e) => {
-                if (e.target.files && e.target.files[0]) {
-                  setProfilePhoto(e.target.files[0]);
-                }
-              }}
-              className="input-control file-input"
-            />
+
+            {photoPreviewUrl ? (
+              <div className="photo-confirmed-card">
+                <div className="photo-confirmed-avatar-wrap">
+                  <img src={photoPreviewUrl} alt="Rider Profile" className="photo-confirmed-avatar" />
+                  <div className="photo-confirmed-check" title="Live Photo Verified">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
+                      <polyline points="20 6 9 17 4 12" />
+                    </svg>
+                  </div>
+                </div>
+                <div className="photo-confirmed-details">
+                  <p className="photo-confirmed-title">Live Photo Captured</p>
+                  <p className="photo-confirmed-sub">Clear headshot ready for passenger verification</p>
+                  <button
+                    type="button"
+                    className="btn-retake-compact"
+                    onClick={() => setShowLivePhotoGuide(true)}
+                  >
+                    Retake Live Photo
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div
+                className="live-photo-trigger-card"
+                onClick={() => setShowLivePhotoGuide(true)}
+                role="button"
+                tabIndex={0}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    setShowLivePhotoGuide(true);
+                  }
+                }}
+              >
+                <div className="camera-icon-badge">
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" />
+                    <circle cx="12" cy="13" r="4" />
+                  </svg>
+                </div>
+                <div>
+                  <p className="live-photo-trigger-title">Take Live Guided Photo</p>
+                  <p className="live-photo-trigger-hint">
+                    The app will guide you with a framing oval and lighting check for a clear, trusted photo.
+                  </p>
+                </div>
+              </div>
+            )}
           </div>
 
           <button
             type="submit"
             disabled={loading}
-            className="btn btn-primary btn-full-width rider-submit-btn"
+            className="btn-auth-primary"
           >
-            {loading ? 'Creating Profile...' : 'Complete Rider Registration'}
+            {loading ? 'Creating Account...' : 'Complete Registration'}
           </button>
 
-          <p className="rider-toggle-note">
+          <p className="auth-switch-text">
             Already have an account?{' '}
             <button
               type="button"
-              className="link-btn"
+              className="auth-switch-link"
               onClick={() => {
                 setAuthMode('login');
                 setErrorMessage(null);
               }}
             >
-              Log in here
+              Sign in
             </button>
           </p>
         </form>
+      )}
+
+      {showLivePhotoGuide && (
+        <LivePhotoGuide
+          onPhotoCaptured={(file) => {
+            setProfilePhoto(file);
+            setPhotoPreviewUrl(URL.createObjectURL(file));
+          }}
+          onClose={() => setShowLivePhotoGuide(false)}
+        />
       )}
     </div>
   );

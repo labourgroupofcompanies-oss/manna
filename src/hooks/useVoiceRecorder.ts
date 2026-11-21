@@ -1,6 +1,11 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
 import type { VoiceRecordingState } from '../types';
-import { getPreferredAudioMimeType, MAX_AUDIO_DURATION_SECONDS } from '../utils/audioOptimizer';
+import {
+  getPreferredAudioMimeType,
+  getOpusMediaRecorderOptions,
+  calculateCompressionStats,
+  MAX_AUDIO_DURATION_SECONDS
+} from '../utils/audioOptimizer';
 
 export interface UseVoiceRecorderReturn extends VoiceRecordingState {
   startRecording: () => Promise<void>;
@@ -83,6 +88,8 @@ export const useVoiceRecorder = (): UseVoiceRecorderReturn => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
         audio: {
+          channelCount: 1, // Mono channel: halving uncompressed data, ideal for speech
+          sampleRate: 24000, // 24kHz wideband voice recording
           echoCancellation: true,
           noiseSuppression: true,
           autoGainControl: true
@@ -90,12 +97,21 @@ export const useVoiceRecorder = (): UseVoiceRecorderReturn => {
       });
       streamRef.current = stream;
 
-      // Select supported audio mimeType
+      // Select supported audio mimeType and Opus voice compression options
       const mimeType = getPreferredAudioMimeType();
+      const opusOptions = getOpusMediaRecorderOptions();
 
-      const recorder = mimeType ? new MediaRecorder(stream, { mimeType }) : new MediaRecorder(stream);
+      let recorder: MediaRecorder;
+      try {
+        recorder = new MediaRecorder(stream, opusOptions);
+      } catch {
+        // Fallback without explicit bitrate constraints if platform rejects custom parameters
+        recorder = mimeType ? new MediaRecorder(stream, { mimeType }) : new MediaRecorder(stream);
+      }
       mediaRecorderRef.current = recorder;
       audioChunksRef.current = [];
+
+      const startTime = Date.now();
 
       recorder.ondataavailable = (event: BlobEvent) => {
         if (event.data && event.data.size > 0) {
@@ -104,19 +120,24 @@ export const useVoiceRecorder = (): UseVoiceRecorderReturn => {
       };
 
       recorder.onstop = () => {
-        const finalMimeType = recorder.mimeType || mimeType || 'audio/webm';
+        const finalMimeType = recorder.mimeType || mimeType || 'audio/webm;codecs=opus';
         const blob = new Blob(audioChunksRef.current, { type: finalMimeType });
         const url = URL.createObjectURL(blob);
         audioUrlRef.current = url;
 
         cleanupMediaResources();
 
+        const durationSeconds = Math.max(1, Math.round((Date.now() - startTime) / 1000));
+        const compressionStats = calculateCompressionStats(blob, durationSeconds);
+
         setState((prev) => ({
           ...prev,
           isRecording: false,
           isPaused: false,
+          recordingDuration: durationSeconds,
           audioBlob: blob,
           audioUrl: url,
+          compressionStats,
           error: null
         }));
       };
@@ -144,7 +165,6 @@ export const useVoiceRecorder = (): UseVoiceRecorderReturn => {
       recorder.start(250); // collect chunks every 250ms
 
       // Start duration counter with 90s auto-stop
-      const startTime = Date.now();
       timerIntervalRef.current = window.setInterval(() => {
         const elapsed = Math.floor((Date.now() - startTime) / 1000);
         if (elapsed >= MAX_AUDIO_DURATION_SECONDS) {
@@ -207,14 +227,20 @@ export const useVoiceRecorder = (): UseVoiceRecorderReturn => {
   }, []);
 
   const deleteRecording = useCallback(() => {
-    if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'recording') {
-      try {
-        mediaRecorderRef.current.stop();
-      } catch {
-        // ignore
+    if (mediaRecorderRef.current) {
+      mediaRecorderRef.current.ondataavailable = null;
+      mediaRecorderRef.current.onstop = null;
+      if (mediaRecorderRef.current.state === 'recording') {
+        try {
+          mediaRecorderRef.current.stop();
+        } catch {
+          // ignore
+        }
       }
+      mediaRecorderRef.current = null;
     }
 
+    audioChunksRef.current = [];
     cleanupMediaResources();
 
     if (audioUrlRef.current) {
