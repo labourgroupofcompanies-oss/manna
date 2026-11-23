@@ -392,53 +392,6 @@ export const AdminSettingsPage: React.FC<AdminSettingsPageProps> = ({ adminUser 
           </div>
         </div>
       </div>
-
-      {/* Owner Provisioning Guide */}
-      <div className="admin-card">
-        <div className="admin-card-header">
-          <h2 className="admin-card-title">
-            <i className="fa-solid fa-key" style={{ color: 'var(--color-primary)', marginRight: 8 }} />
-            <span>Owner Administration & Privilege Control</span>
-          </h2>
-        </div>
-
-        <div className="admin-card-body" style={{ fontSize: '0.875rem', lineHeight: 1.6 }}>
-          <p style={{ margin: '0 0 12px 0', color: '#475569' }}>
-            To preserve absolute security, administrative privileges are decoupled from frontend state
-            and cannot be granted via client API calls. Only the project owner can initialize or modify
-            administrators through database execution:
-          </p>
-
-          <div
-            style={{
-              backgroundColor: '#0F172A',
-              color: '#F8FAFC',
-              padding: '14px 18px',
-              borderRadius: 10,
-              fontFamily: 'monospace',
-              fontSize: '0.8rem',
-              overflowX: 'auto',
-              marginBottom: 14,
-              lineHeight: 1.5
-            }}
-          >
-            <div style={{ color: '#94A3B8' }}>-- To promote an existing Supabase Auth user to Super Admin:</div>
-            <div style={{ color: '#FBBF24' }}>
-              INSERT INTO public.admin_users (user_id, email, role)
-            </div>
-            <div style={{ color: '#FBBF24' }}>
-              SELECT id, email, &apos;super_admin&apos; FROM auth.users WHERE email = &apos;owner@okadabook.com&apos;
-            </div>
-            <div style={{ color: '#FBBF24' }}>
-              ON CONFLICT (user_id) DO UPDATE SET role = &apos;super_admin&apos;;
-            </div>
-          </div>
-
-          <p style={{ fontSize: '0.8rem', color: '#64748B', margin: 0 }}>
-            Reference script available in <code>supabase/PROVISION_ADMIN.sql</code>.
-          </p>
-        </div>
-      </div>
     </div>
   );
 };

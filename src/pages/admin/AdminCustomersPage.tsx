@@ -55,6 +55,7 @@ export const AdminCustomersPage: React.FC = () => {
   }
 
   const totalRidesTaken = customers.reduce((acc, c) => acc + c.totalOrders, 0);
+  const completedRidesTaken = customers.reduce((acc, c) => acc + c.completedOrders, 0);
   const repeatCustomersCount = customers.filter((c) => c.totalOrders > 1).length;
 
   return (
@@ -69,7 +70,7 @@ export const AdminCustomersPage: React.FC = () => {
             </span>
           </div>
           <div className="admin-metric-value">{customers.length}</div>
-          <span className="admin-metric-subtext">Unique passenger phone numbers</span>
+          <span className="admin-metric-subtext">Unique phone numbers</span>
         </div>
 
         <div className="admin-metric-card accent-green">
@@ -80,7 +81,18 @@ export const AdminCustomersPage: React.FC = () => {
             </span>
           </div>
           <div className="admin-metric-value" style={{ color: '#059669' }}>{totalRidesTaken}</div>
-          <span className="admin-metric-subtext">Cumulative rides submitted</span>
+          <span className="admin-metric-subtext">Cumulative requests</span>
+        </div>
+
+        <div className="admin-metric-card accent-green">
+          <div className="admin-metric-header">
+            <span className="admin-metric-label">Completed Trips</span>
+            <span className="admin-metric-icon">
+              <i className="fa-solid fa-circle-check" style={{ color: '#059669' }} />
+            </span>
+          </div>
+          <div className="admin-metric-value" style={{ color: '#059669' }}>{completedRidesTaken}</div>
+          <span className="admin-metric-subtext">Fulfilled deliveries</span>
         </div>
 
         <div className="admin-metric-card accent-blue">
@@ -93,7 +105,7 @@ export const AdminCustomersPage: React.FC = () => {
           <div className="admin-metric-value" style={{ color: 'var(--color-primary)' }}>
             {repeatCustomersCount}
           </div>
-          <span className="admin-metric-subtext">Clients with 2+ bookings</span>
+          <span className="admin-metric-subtext">2+ bookings</span>
         </div>
       </div>
 

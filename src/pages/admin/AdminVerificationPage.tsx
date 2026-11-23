@@ -143,14 +143,42 @@ export const AdminVerificationPage: React.FC = () => {
   return (
     <div>
       {/* Top Header & Metrics */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20, flexWrap: 'wrap', gap: 12 }}>
-        <div>
-          <h2 style={{ fontSize: '1.25rem', fontWeight: 800, margin: 0, color: 'var(--color-dark-navy)', letterSpacing: '-0.01em' }}>
-            Rider Verification Workspace
-          </h2>
-          <span style={{ fontSize: '0.85rem', color: '#64748B' }}>
-            Review registered riders (auto-approved to take orders). Approve to confirm dispatch or decline to suspend account.
-          </span>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14, flexWrap: 'wrap', gap: 10 }}>
+        <div className="admin-pill-group">
+          {(['pending', 'approved', 'rejected', 'suspended', 'all'] as const).map((f) => (
+            <button
+              key={f}
+              type="button"
+              className={`admin-pill ${filter === f ? 'active' : ''}`}
+              onClick={() => setFilter(f)}
+              style={{ textTransform: 'capitalize' }}
+            >
+              <span>
+                {f === 'pending' ? (
+                  <>
+                    <i className="fa-solid fa-clock" style={{ color: '#D97706', marginRight: 4 }} /> Pending
+                  </>
+                ) : f === 'approved' ? (
+                  <>
+                    <i className="fa-solid fa-circle-check" style={{ color: '#059669', marginRight: 4 }} /> Approved
+                  </>
+                ) : f === 'rejected' ? (
+                  <>
+                    <i className="fa-solid fa-circle-xmark" style={{ color: '#DC2626', marginRight: 4 }} /> Rejected
+                  </>
+                ) : f === 'suspended' ? (
+                  <>
+                    <i className="fa-solid fa-triangle-exclamation" style={{ color: '#D97706', marginRight: 4 }} /> Suspended
+                  </>
+                ) : (
+                  'All'
+                )}
+              </span>
+              {f === 'pending' && pendingCount > 0 && (
+                <span className="admin-action-counter alert" style={{ marginLeft: 4 }}>{pendingCount}</span>
+              )}
+            </button>
+          ))}
         </div>
 
         <button
@@ -173,46 +201,8 @@ export const AdminVerificationPage: React.FC = () => {
         </button>
       </div>
 
-      {/* Filter Pill Chips */}
-      <div className="admin-pill-group" style={{ marginBottom: 20 }}>
-        {(['pending', 'approved', 'rejected', 'suspended', 'all'] as const).map((f) => (
-          <button
-            key={f}
-            type="button"
-            className={`admin-pill ${filter === f ? 'active' : ''}`}
-            onClick={() => setFilter(f)}
-            style={{ textTransform: 'capitalize' }}
-          >
-            <span>
-              {f === 'pending' ? (
-                <>
-                  <i className="fa-solid fa-clock" style={{ color: '#D97706', marginRight: 4 }} /> Pending
-                </>
-              ) : f === 'approved' ? (
-                <>
-                  <i className="fa-solid fa-circle-check" style={{ color: '#059669', marginRight: 4 }} /> Approved
-                </>
-              ) : f === 'rejected' ? (
-                <>
-                  <i className="fa-solid fa-circle-xmark" style={{ color: '#DC2626', marginRight: 4 }} /> Rejected
-                </>
-              ) : f === 'suspended' ? (
-                <>
-                  <i className="fa-solid fa-triangle-exclamation" style={{ color: '#D97706', marginRight: 4 }} /> Suspended
-                </>
-              ) : (
-                'All'
-              )}
-            </span>
-            {f === 'pending' && pendingCount > 0 && (
-              <span className="admin-action-counter alert" style={{ marginLeft: 4 }}>{pendingCount}</span>
-            )}
-          </button>
-        ))}
-      </div>
-
       {/* Workspace Grid (Mobile stacks nicely, Desktop is sleek two-column) */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 20, alignItems: 'start' }}>
+      <div className="admin-verification-layout">
         {/* Left Column / Mobile Top: Riders Queue */}
         <div className="admin-card">
           <div className="admin-card-header">
@@ -221,11 +211,11 @@ export const AdminVerificationPage: React.FC = () => {
               <span>Verification Queue ({filteredRiders.length})</span>
             </h3>
             <span style={{ fontSize: '0.75rem', color: '#64748B' }}>
-              Tap a rider to review credentials
+              Tap a rider to inspect
             </span>
           </div>
 
-          <div className="admin-card-body" style={{ padding: 12, maxHeight: 'calc(100vh - 280px)', overflowY: 'auto' }}>
+          <div className="admin-card-body" style={{ padding: 12, maxHeight: 380, overflowY: 'auto' }}>
             {filteredRiders.length === 0 ? (
               <div className="admin-empty-state" style={{ padding: 24 }}>
                 <div style={{ marginBottom: 8 }}>

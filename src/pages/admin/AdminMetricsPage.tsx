@@ -47,42 +47,11 @@ export const AdminMetricsPage: React.FC = () => {
 
   return (
     <div>
-      {/* Top Header */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20, flexWrap: 'wrap', gap: 12 }}>
-        <div>
-          <h2 style={{ fontSize: '1.25rem', fontWeight: 800, margin: 0, color: 'var(--color-dark-navy)', letterSpacing: '-0.01em' }}>
-            System Metrics & Health Telemetry
-          </h2>
-          <span style={{ fontSize: '0.85rem', color: '#64748B' }}>
-            Live infrastructure diagnostics, storage metrics, and tamper-resistant audit log
-          </span>
-        </div>
-
-        <button
-          type="button"
-          className="admin-action-btn primary"
-          onClick={handleRefresh}
-          disabled={refreshing}
-        >
-          {refreshing ? (
-            <>
-              <i className="fa-solid fa-arrows-rotate fa-spin" style={{ marginRight: 6 }} />
-              Telemetry...
-            </>
-          ) : (
-            <>
-              <i className="fa-solid fa-arrows-rotate" style={{ marginRight: 6 }} />
-              Refresh Metrics
-            </>
-          )}
-        </button>
-      </div>
-
       {/* System Health Status Banner */}
       <div
         style={{
-          padding: '18px 22px',
-          borderRadius: 16,
+          padding: '14px 18px',
+          borderRadius: 14,
           background:
             healthStatus === 'Healthy'
               ? 'linear-gradient(135deg, #ECFDF5 0%, #D1FAE5 100%)'
@@ -96,17 +65,17 @@ export const AdminMetricsPage: React.FC = () => {
               ? '#FDE68A'
               : '#FECACA'
           }`,
-          marginBottom: 24,
+          marginBottom: 18,
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
           flexWrap: 'wrap',
-          gap: 14,
+          gap: 12,
           boxShadow: '0 2px 8px rgba(16, 27, 61, 0.04)'
         }}
       >
-        <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
-          <div style={{ fontSize: '2.4rem', lineHeight: 1 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          <div style={{ fontSize: '1.8rem', lineHeight: 1 }}>
             {healthStatus === 'Healthy' ? (
               <i className="fa-solid fa-circle-check" style={{ color: '#059669' }} />
             ) : healthStatus === 'Warning' ? (
@@ -116,26 +85,37 @@ export const AdminMetricsPage: React.FC = () => {
             )}
           </div>
           <div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <h3 style={{ margin: 0, fontSize: '1.2rem', color: 'var(--color-dark-navy)', fontWeight: 800 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+              <h3 style={{ margin: 0, fontSize: '1.05rem', color: 'var(--color-dark-navy)', fontWeight: 800 }}>
                 System Status: {healthStatus}
               </h3>
               <span className={`status-badge ${healthStatus.toLowerCase().replace(/\s+/g, '_')}`}>
                 {healthStatus}
               </span>
             </div>
-            <p style={{ margin: '4px 0 0 0', fontSize: '0.875rem', color: '#475569', lineHeight: 1.4 }}>
+            <p style={{ margin: '2px 0 0 0', fontSize: '0.82rem', color: '#475569', lineHeight: 1.4 }}>
               {metrics?.healthReason}
             </p>
           </div>
         </div>
 
-        <div style={{ fontSize: '0.775rem', color: '#64748B', textAlign: 'right' }}>
-          Evaluated at: {new Date(metrics?.evaluatedAt || Date.now()).toLocaleTimeString()}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <span style={{ fontSize: '0.75rem', color: '#64748B' }}>
+            {new Date(metrics?.evaluatedAt || Date.now()).toLocaleTimeString()}
+          </span>
+          <button
+            type="button"
+            className="admin-action-btn primary"
+            onClick={handleRefresh}
+            disabled={refreshing}
+          >
+            <i className={`fa-solid fa-arrows-rotate ${refreshing ? 'fa-spin' : ''}`} style={{ marginRight: 4 }} />
+            {refreshing ? 'Refreshing...' : 'Refresh'}
+          </button>
         </div>
       </div>
 
-      {/* Reliability Metrics Grid */}
+      {/* 4-Card Core Reliability Metrics Grid */}
       <div className="admin-grid-metrics">
         <div className="admin-metric-card accent-blue">
           <div className="admin-metric-header">
@@ -145,7 +125,7 @@ export const AdminMetricsPage: React.FC = () => {
             </span>
           </div>
           <div className="admin-metric-value">{metrics?.totalOrders ?? 0}</div>
-          <span className="admin-metric-subtext">Recorded in orders table</span>
+          <span className="admin-metric-subtext">Recorded in database</span>
         </div>
 
         <div className="admin-metric-card accent-green">
@@ -158,20 +138,9 @@ export const AdminMetricsPage: React.FC = () => {
           <div className="admin-metric-value" style={{ color: '#059669' }}>
             {metrics?.successfulOrders ?? 0}
           </div>
-          <span className="admin-metric-subtext">Status completed</span>
-        </div>
-
-        <div className="admin-metric-card accent-red">
-          <div className="admin-metric-header">
-            <span className="admin-metric-label">Cancelled Orders</span>
-            <span className="admin-metric-icon">
-              <i className="fa-solid fa-circle-xmark" style={{ color: '#DC2626' }} />
-            </span>
-          </div>
-          <div className="admin-metric-value" style={{ color: '#DC2626' }}>
-            {metrics?.failedOrders ?? 0}
-          </div>
-          <span className="admin-metric-subtext">Terminated before completion</span>
+          <span className="admin-metric-subtext">
+            {metrics?.failedOrders ?? 0} cancelled overall
+          </span>
         </div>
 
         <div className="admin-metric-card accent-blue">
@@ -189,28 +158,25 @@ export const AdminMetricsPage: React.FC = () => {
 
         <div className="admin-metric-card">
           <div className="admin-metric-header">
-            <span className="admin-metric-label">Audio Upload Failures</span>
+            <span className="admin-metric-label">Media Errors</span>
             <span className="admin-metric-icon">
-              <i className="fa-solid fa-microphone" style={{ color: '#64748B' }} />
+              <i className="fa-solid fa-cloud-arrow-up" style={{ color: '#64748B' }} />
             </span>
           </div>
-          <div className="admin-metric-value" style={{ color: metrics && metrics.audioUploadFailures > 0 ? '#DC2626' : 'inherit' }}>
-            {metrics?.audioUploadFailures ?? 0}
+          <div
+            className="admin-metric-value"
+            style={{
+              color:
+                (metrics?.audioUploadFailures ?? 0) + (metrics?.imageUploadFailures ?? 0) > 0
+                  ? '#DC2626'
+                  : 'inherit'
+            }}
+          >
+            {(metrics?.audioUploadFailures ?? 0) + (metrics?.imageUploadFailures ?? 0)}
           </div>
-          <span className="admin-metric-subtext">order_media upload_status=&apos;failed&apos;</span>
-        </div>
-
-        <div className="admin-metric-card">
-          <div className="admin-metric-header">
-            <span className="admin-metric-label">Image Upload Failures</span>
-            <span className="admin-metric-icon">
-              <i className="fa-regular fa-image" style={{ color: '#64748B' }} />
-            </span>
-          </div>
-          <div className="admin-metric-value" style={{ color: metrics && metrics.imageUploadFailures > 0 ? '#DC2626' : 'inherit' }}>
-            {metrics?.imageUploadFailures ?? 0}
-          </div>
-          <span className="admin-metric-subtext">Avatars & document errors</span>
+          <span className="admin-metric-subtext">
+            {metrics?.audioUploadFailures ?? 0} audio &bull; {metrics?.imageUploadFailures ?? 0} image
+          </span>
         </div>
       </div>
 

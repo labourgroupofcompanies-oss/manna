@@ -284,58 +284,262 @@ export const AdminRidersPage: React.FC = () => {
 
   return (
     <div>
-      {/* Fleet Metric Strip */}
+      {/* Clean 4-Card Fleet & Revenue Summary Strip */}
       <div className="admin-grid-metrics">
         <div className="admin-metric-card accent-blue">
           <div className="admin-metric-header">
-            <span className="admin-metric-label">Total Fleet</span>
+            <span className="admin-metric-label">Rider Fleet</span>
             <span className="admin-metric-icon">
               <i className="fa-solid fa-motorcycle" style={{ color: 'var(--color-primary)' }} />
             </span>
           </div>
-          <div className="admin-metric-value">{riders.length}</div>
-          <span className="admin-metric-subtext">Registered riders</span>
+          <div className="admin-metric-value">
+            {onlineCount}
+            <span style={{ fontSize: '0.9rem', fontWeight: 600, color: '#64748B', marginLeft: 4 }}>
+              / {riders.length} online
+            </span>
+          </div>
+          <span className="admin-metric-subtext">
+            {approvedCount} verified &bull; {pendingCount} pending
+          </span>
         </div>
 
         <div className="admin-metric-card accent-green">
           <div className="admin-metric-header">
-            <span className="admin-metric-label">Verified & Approved</span>
+            <span className="admin-metric-label">Commission Revenue</span>
             <span className="admin-metric-icon">
-              <i className="fa-solid fa-shield-halved" style={{ color: '#059669' }} />
+              <i className="fa-solid fa-wallet" style={{ color: '#059669' }} />
             </span>
           </div>
           <div className="admin-metric-value" style={{ color: '#059669' }}>
-            {approvedCount}
+            GH₵ {commissionRevenue.toFixed(2)}
           </div>
-          <span className="admin-metric-subtext">Eligible for order dispatch</span>
+          <span className="admin-metric-subtext">GH₵ 3.00 per approved ride</span>
         </div>
 
         <div className="admin-metric-card accent-amber">
           <div className="admin-metric-header">
-            <span className="admin-metric-label">Pending Verification</span>
+            <span className="admin-metric-label">Pending MoMo</span>
             <span className="admin-metric-icon">
               <i className="fa-solid fa-clock" style={{ color: '#D97706' }} />
             </span>
           </div>
-          <div className="admin-metric-value" style={{ color: '#D97706' }}>
-            {pendingCount}
+          <div className="admin-metric-value" style={{ color: pendingTopups.length > 0 ? '#D97706' : '#0F172A' }}>
+            {pendingTopups.length}
           </div>
-          <span className="admin-metric-subtext">Needs admin document review</span>
+          <span className="admin-metric-subtext">Awaiting confirmation</span>
         </div>
 
-        <div className="admin-metric-card accent-blue">
+        <div className="admin-metric-card">
           <div className="admin-metric-header">
-            <span className="admin-metric-label">Online on Roads</span>
-            <span className="admin-metric-icon">
-              <i className="fa-solid fa-circle-dot" style={{ color: 'var(--color-primary)' }} />
-            </span>
+            <span className="admin-metric-label">Receiving MoMo</span>
+            <button
+              type="button"
+              className="admin-action-btn"
+              style={{ padding: '2px 8px', fontSize: '0.72rem' }}
+              onClick={() => setEditingMomo((prev) => !prev)}
+            >
+              {editingMomo ? 'Close' : 'Edit'}
+            </button>
           </div>
-          <div className="admin-metric-value" style={{ color: 'var(--color-primary)' }}>
-            {onlineCount}
+          <div className="admin-metric-value" style={{ fontSize: '1.15rem' }}>
+            {momoNumber}
           </div>
-          <span className="admin-metric-subtext">Available for bookings</span>
+          <span className="admin-metric-subtext">
+            {momoName} &bull; {momoNetwork}
+          </span>
         </div>
       </div>
+
+      {editingMomo && (
+        <form
+          onSubmit={handleSaveMomoSettings}
+          style={{
+            marginBottom: 16,
+            padding: 14,
+            background: '#FFFFFF',
+            border: '1px solid #CBD5E1',
+            borderRadius: 12,
+            display: 'flex',
+            flexWrap: 'wrap',
+            gap: 8,
+            alignItems: 'center'
+          }}
+        >
+          <input
+            type="text"
+            value={momoNumber}
+            onChange={(e) => setMomoNumber(e.target.value)}
+            placeholder="MoMo Number"
+            style={{ padding: '8px 10px', borderRadius: 8, border: '1px solid #CBD5E1', flex: '1 1 160px' }}
+            required
+          />
+          <input
+            type="text"
+            value={momoName}
+            onChange={(e) => setMomoName(e.target.value)}
+            placeholder="Account Name"
+            style={{ padding: '8px 10px', borderRadius: 8, border: '1px solid #CBD5E1', flex: '1 1 160px' }}
+            required
+          />
+          <select
+            value={momoNetwork}
+            onChange={(e) => setMomoNetwork(e.target.value)}
+            style={{ padding: '8px 10px', borderRadius: 8, border: '1px solid #CBD5E1' }}
+          >
+            <option value="MTN MoMo">MTN MoMo</option>
+            <option value="Telecel Cash">Telecel Cash</option>
+            <option value="AT Money">AT Money</option>
+          </select>
+          <button type="submit" className="admin-action-btn success" disabled={savingMomo}>
+            {savingMomo ? 'Saving...' : 'Save MoMo'}
+          </button>
+        </form>
+      )}
+
+      {/* MoMo Top-Up & Refund Approvals Banner (Always Visible at Top) */}
+      <div
+        style={{
+          marginBottom: 16,
+          padding: 14,
+          background: '#EFF6FF',
+          border: '1px solid #BFDBFE',
+          borderRadius: 12,
+          display: 'flex',
+          flexDirection: 'column',
+          gap: 10
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, flexWrap: 'wrap' }}>
+          <div style={{ fontWeight: 700, fontSize: '0.88rem', color: '#1E3A8A' }}>
+            <i className="fa-solid fa-mobile-screen-button" style={{ marginRight: 6 }} />
+            MoMo Wallet Top-Up Approvals ({pendingTopups.length} Pending)
+          </div>
+          <button
+            type="button"
+            className="admin-action-btn"
+            onClick={handleRefresh}
+            disabled={refreshing}
+          >
+            <i className={`fa-solid fa-arrows-rotate ${refreshing ? 'fa-spin' : ''}`} style={{ marginRight: 4 }} />
+            {refreshing ? 'Refreshing...' : 'Refresh'}
+          </button>
+        </div>
+
+        {pendingTopups.length === 0 ? (
+          <div style={{ fontSize: '0.8rem', color: '#475569' }}>
+            No pending MoMo top-up requests right now. When a rider submits a MoMo Transaction ID, it will appear here for 1-click approval.
+          </div>
+        ) : (
+          pendingTopups.map((req) => (
+            <div
+              key={req.id}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                flexWrap: 'wrap',
+                gap: 10,
+                background: '#FFFFFF',
+                padding: '10px 12px',
+                borderRadius: 10,
+                border: '1px solid #BFDBFE'
+              }}
+            >
+              <div style={{ fontSize: '0.82rem' }}>
+                <strong>{req.riderName}</strong> ({req.riderPhone}) &bull;{' '}
+                <strong style={{ color: '#15803D' }}>GH₵ {req.amount.toFixed(2)}</strong> &bull;{' '}
+                <span>{req.momoNetwork}</span>
+                <div style={{ color: '#1E3A8A', fontSize: '0.78rem', fontWeight: 700, marginTop: 2 }}>
+                  Tx ID: {req.transactionId}
+                </div>
+              </div>
+              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                <button
+                  type="button"
+                  className="admin-action-btn success"
+                  disabled={reviewingTopupId === req.id}
+                  onClick={() => handleReviewTopup(req.id, 'approved')}
+                >
+                  {reviewingTopupId === req.id ? '...' : `Approve & Credit GH₵ ${req.amount.toFixed(2)}`}
+                </button>
+                <button
+                  type="button"
+                  className="admin-action-btn danger"
+                  disabled={reviewingTopupId === req.id}
+                  onClick={() => handleReviewTopup(req.id, 'rejected')}
+                >
+                  Reject
+                </button>
+              </div>
+            </div>
+          ))
+        )}
+      </div>
+
+      {refundRequests.length > 0 && (
+        <div
+          style={{
+            marginBottom: 16,
+            padding: 14,
+            background: '#FFFBEB',
+            border: '1px solid #FDE68A',
+            borderRadius: 12,
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 10
+          }}
+        >
+          <div style={{ fontWeight: 700, fontSize: '0.88rem', color: '#92400E' }}>
+            Pending Rider Refund Requests ({refundRequests.length})
+          </div>
+          {refundRequests.map((req) => (
+            <div
+              key={req.id}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                flexWrap: 'wrap',
+                gap: 10,
+                background: '#FFFFFF',
+                padding: '10px 12px',
+                borderRadius: 10,
+                border: '1px solid #FDE68A'
+              }}
+            >
+              <div style={{ fontSize: '0.82rem' }}>
+                <strong>{req.riderName}</strong> ({req.riderPhone}) &bull;{' '}
+                <strong>{req.orderReference}</strong> &bull;{' '}
+                <span style={{ color: '#B45309', fontWeight: 700 }}>
+                  {req.chargeType === 'free_ride' ? '1 Free Ride' : `GH₵ ${req.amount.toFixed(2)}`}
+                </span>
+                <div style={{ color: '#64748B', fontSize: '0.76rem', marginTop: 2 }}>
+                  Reason: {req.reason}
+                </div>
+              </div>
+              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                <button
+                  type="button"
+                  className="admin-action-btn success"
+                  disabled={reviewingRefundId === req.id}
+                  onClick={() => handleReviewRefund(req.id, 'approved')}
+                >
+                  {reviewingRefundId === req.id ? '...' : 'Approve Refund'}
+                </button>
+                <button
+                  type="button"
+                  className="admin-action-btn danger"
+                  disabled={reviewingRefundId === req.id}
+                  onClick={() => handleReviewRefund(req.id, 'rejected')}
+                >
+                  Reject
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
 
       {/* Main Table Card */}
       <div className="admin-card">
@@ -474,230 +678,6 @@ export const AdminRidersPage: React.FC = () => {
             </div>
           ) : (
             <>
-              {/* Commission Revenue & Pending Refund Requests Bar */}
-              <div
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  flexWrap: 'wrap',
-                  gap: 12,
-                  padding: '12px 16px',
-                  marginBottom: 14,
-                  background: '#F0FDF4',
-                  border: '1px solid #BBF7D0',
-                  borderRadius: 12
-                }}
-              >
-                <div>
-                  <div style={{ fontSize: '0.75rem', fontWeight: 700, color: '#166534' }}>
-                    Net Rider Commission Revenue (GH₵ 3.00 / Ride)
-                  </div>
-                  <div style={{ fontSize: '1.35rem', fontWeight: 800, color: '#14532D' }}>
-                    GH₵ {commissionRevenue.toFixed(2)}
-                  </div>
-                </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-                  <div style={{ fontSize: '0.78rem', color: '#166534' }}>
-                    <strong>Receiving MoMo:</strong> {momoNumber} ({momoName} &bull; {momoNetwork})
-                  </div>
-                  <button
-                    type="button"
-                    className="admin-action-btn"
-                    onClick={() => setEditingMomo((prev) => !prev)}
-                  >
-                    {editingMomo ? 'Close' : 'Edit MoMo'}
-                  </button>
-                </div>
-              </div>
-
-              {editingMomo && (
-                <form
-                  onSubmit={handleSaveMomoSettings}
-                  style={{
-                    marginBottom: 14,
-                    padding: 12,
-                    background: '#F8FAFC',
-                    border: '1px solid #CBD5E1',
-                    borderRadius: 12,
-                    display: 'flex',
-                    flexWrap: 'wrap',
-                    gap: 8,
-                    alignItems: 'center'
-                  }}
-                >
-                  <input
-                    type="text"
-                    value={momoNumber}
-                    onChange={(e) => setMomoNumber(e.target.value)}
-                    placeholder="Your MoMo Number (e.g. 0245660622)"
-                    style={{ padding: '7px 10px', borderRadius: 8, border: '1px solid #CBD5E1', flex: '1 1 160px' }}
-                    required
-                  />
-                  <input
-                    type="text"
-                    value={momoName}
-                    onChange={(e) => setMomoName(e.target.value)}
-                    placeholder="Account Name"
-                    style={{ padding: '7px 10px', borderRadius: 8, border: '1px solid #CBD5E1', flex: '1 1 160px' }}
-                    required
-                  />
-                  <select
-                    value={momoNetwork}
-                    onChange={(e) => setMomoNetwork(e.target.value)}
-                    style={{ padding: '7px 10px', borderRadius: 8, border: '1px solid #CBD5E1' }}
-                  >
-                    <option value="MTN MoMo">MTN MoMo</option>
-                    <option value="Telecel Cash">Telecel Cash</option>
-                    <option value="AT Money">AT Money</option>
-                  </select>
-                  <button type="submit" className="admin-action-btn success" disabled={savingMomo}>
-                    {savingMomo ? 'Saving...' : 'Save MoMo'}
-                  </button>
-                </form>
-              )}
-
-              <div
-                style={{
-                  marginBottom: 16,
-                  padding: 14,
-                  background: '#EFF6FF',
-                  border: '1px solid #BFDBFE',
-                  borderRadius: 12,
-                  display: 'flex',
-                  flexDirection: 'column',
-                  gap: 10
-                }}
-              >
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
-                  <div style={{ fontWeight: 700, fontSize: '0.88rem', color: '#1E3A8A' }}>
-                    MoMo Wallet Top-Up Approvals ({pendingTopups.length} Pending)
-                  </div>
-                  <button
-                    type="button"
-                    className="admin-action-btn"
-                    onClick={handleRefresh}
-                    disabled={refreshing}
-                  >
-                    {refreshing ? 'Refreshing...' : 'Refresh'}
-                  </button>
-                </div>
-
-                {pendingTopups.length === 0 ? (
-                  <div style={{ fontSize: '0.8rem', color: '#475569' }}>
-                    No pending MoMo top-up requests right now. When a rider submits a MoMo Transaction ID, it will appear here for 1-click approval.
-                  </div>
-                ) : (
-                  pendingTopups.map((req) => (
-                    <div
-                      key={req.id}
-                      style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'space-between',
-                        flexWrap: 'wrap',
-                        gap: 10,
-                        background: '#FFFFFF',
-                        padding: '10px 12px',
-                        borderRadius: 10,
-                        border: '1px solid #BFDBFE'
-                      }}
-                    >
-                      <div style={{ fontSize: '0.82rem' }}>
-                        <strong>{req.riderName}</strong> ({req.riderPhone}) &bull;{' '}
-                        <strong style={{ color: '#15803D' }}>GH₵ {req.amount.toFixed(2)}</strong> &bull;{' '}
-                        <span>{req.momoNetwork}</span>
-                        <div style={{ color: '#1E3A8A', fontSize: '0.78rem', fontWeight: 700, marginTop: 2 }}>
-                          Tx ID: {req.transactionId}
-                        </div>
-                      </div>
-                      <div style={{ display: 'flex', gap: 8 }}>
-                        <button
-                          type="button"
-                          className="admin-action-btn success"
-                          disabled={reviewingTopupId === req.id}
-                          onClick={() => handleReviewTopup(req.id, 'approved')}
-                        >
-                          {reviewingTopupId === req.id ? '...' : `Approve & Credit GH₵ ${req.amount.toFixed(2)}`}
-                        </button>
-                        <button
-                          type="button"
-                          className="admin-action-btn danger"
-                          disabled={reviewingTopupId === req.id}
-                          onClick={() => handleReviewTopup(req.id, 'rejected')}
-                        >
-                          Reject
-                        </button>
-                      </div>
-                    </div>
-                  ))
-                )}
-              </div>
-
-              {refundRequests.length > 0 && (
-                <div
-                  style={{
-                    marginBottom: 16,
-                    padding: 14,
-                    background: '#FFFBEB',
-                    border: '1px solid #FDE68A',
-                    borderRadius: 12,
-                    display: 'flex',
-                    flexDirection: 'column',
-                    gap: 10
-                  }}
-                >
-                  <div style={{ fontWeight: 700, fontSize: '0.88rem', color: '#92400E' }}>
-                    Pending Rider Refund Requests
-                  </div>
-                  {refundRequests.map((req) => (
-                    <div
-                      key={req.id}
-                      style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'space-between',
-                        flexWrap: 'wrap',
-                        gap: 10,
-                        background: '#FFFFFF',
-                        padding: '10px 12px',
-                        borderRadius: 10,
-                        border: '1px solid #FDE68A'
-                      }}
-                    >
-                      <div style={{ fontSize: '0.82rem' }}>
-                        <strong>{req.riderName}</strong> ({req.riderPhone}) &bull;{' '}
-                        <strong>{req.orderReference}</strong> &bull;{' '}
-                        <span style={{ color: '#B45309', fontWeight: 700 }}>
-                          {req.chargeType === 'free_ride' ? '1 Free Ride' : `GH₵ ${req.amount.toFixed(2)}`}
-                        </span>
-                        <div style={{ color: '#64748B', fontSize: '0.76rem', marginTop: 2 }}>
-                          Reason: {req.reason}
-                        </div>
-                      </div>
-                      <div style={{ display: 'flex', gap: 8 }}>
-                        <button
-                          type="button"
-                          className="admin-action-btn success"
-                          disabled={reviewingRefundId === req.id}
-                          onClick={() => handleReviewRefund(req.id, 'approved')}
-                        >
-                          {reviewingRefundId === req.id ? '...' : 'Approve Refund'}
-                        </button>
-                        <button
-                          type="button"
-                          className="admin-action-btn danger"
-                          disabled={reviewingRefundId === req.id}
-                          onClick={() => handleReviewRefund(req.id, 'rejected')}
-                        >
-                          Reject
-                        </button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-
               {/* Desktop Table View (>= 769px) */}
               <div className="admin-desktop-table-view">
                 <div className="admin-table-wrap">
@@ -978,6 +958,18 @@ export const AdminRidersPage: React.FC = () => {
                         <span className="admin-mcard-label">Verification:</span>
                         <span className={`status-badge ${rider.verificationStatus}`}>
                           {rider.verificationStatus === 'pending' ? 'Auto-Approved (Pending)' : rider.verificationStatus}
+                        </span>
+                      </div>
+
+                      <div className="admin-mcard-row">
+                        <span className="admin-mcard-label">Wallet:</span>
+                        <span className="admin-mcard-value">
+                          <strong>GH₵ {(rider.walletBalance ?? 0).toFixed(2)}</strong>
+                          {(rider.freeRidesRemaining ?? 0) > 0 && (
+                            <span style={{ color: '#0B57D0', marginLeft: 6, fontSize: '0.75rem', fontWeight: 600 }}>
+                              ({rider.freeRidesRemaining} free left)
+                            </span>
+                          )}
                         </span>
                       </div>
 

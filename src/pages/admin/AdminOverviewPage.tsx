@@ -90,7 +90,7 @@ export const AdminOverviewPage: React.FC = () => {
             <div className="admin-welcome-subtext">
               {onlineCount > 0 ? (
                 <span>
-                  🟢 <strong>{onlineCount} riders online</strong> ready across Accra • {pendingTrips} trip{pendingTrips !== 1 ? 's' : ''} waiting
+                  🟢 <strong>{onlineCount} riders online</strong> across Kadjebi • {pendingTrips} trip{pendingTrips !== 1 ? 's' : ''} waiting
                 </span>
               ) : (
                 <span>
@@ -159,78 +159,46 @@ export const AdminOverviewPage: React.FC = () => {
         </Link>
       </div>
 
-      {/* KPI Section 1: Trip & Customer Summary Cards */}
+      {/* Executive 4-Card KPI Summary Strip */}
       <div className="admin-grid-metrics">
         <div className="admin-metric-card accent-blue">
           <div className="admin-metric-header">
             <span className="admin-metric-label">Total Trips</span>
             <span className="admin-metric-icon">
-              <i className="fa-solid fa-box-archive" />
+              <i className="fa-solid fa-route" />
             </span>
           </div>
           <div className="admin-metric-value">{metrics?.totalOrders ?? 0}</div>
-          <span className="admin-metric-subtext">All-time booking requests</span>
-        </div>
-
-        <div className="admin-metric-card accent-amber">
-          <div className="admin-metric-header">
-            <span className="admin-metric-label">Pending Trips</span>
-            <span className="admin-metric-icon">
-              <i className="fa-solid fa-clock" />
-            </span>
-          </div>
-          <div className="admin-metric-value" style={{ color: '#D97706' }}>
-            {metrics?.pendingOrders ?? 0}
-          </div>
-          <span className="admin-metric-subtext">Awaiting rider acceptance</span>
-        </div>
-
-        <div className="admin-metric-card accent-blue">
-          <div className="admin-metric-header">
-            <span className="admin-metric-label">Active on Road</span>
-            <span className="admin-metric-icon">
-              <i className="fa-solid fa-bolt" />
-            </span>
-          </div>
-          <div className="admin-metric-value" style={{ color: 'var(--color-secondary)' }}>
-            {metrics?.acceptedOrders ?? 0}
-          </div>
-          <span className="admin-metric-subtext">Accepted / In transit</span>
+          <span className="admin-metric-subtext">
+            {metrics?.pendingOrders ?? 0} pending &bull; {metrics?.acceptedOrders ?? 0} active &bull; {metrics?.completedOrders ?? 0} done
+          </span>
         </div>
 
         <div className="admin-metric-card accent-green">
           <div className="admin-metric-header">
-            <span className="admin-metric-label">Completed Rides</span>
+            <span className="admin-metric-label">Online Riders</span>
             <span className="admin-metric-icon">
-              <i className="fa-solid fa-circle-check" />
+              <i className="fa-solid fa-motorcycle" style={{ color: '#059669' }} />
             </span>
           </div>
           <div className="admin-metric-value" style={{ color: '#059669' }}>
-            {metrics?.completedOrders ?? 0}
-          </div>
-          <span className="admin-metric-subtext">Safely arrived at destination</span>
-        </div>
-
-        <div className="admin-metric-card accent-red">
-          <div className="admin-metric-header">
-            <span className="admin-metric-label">Cancelled Trips</span>
-            <span className="admin-metric-icon">
-              <i className="fa-solid fa-circle-xmark" />
+            {metrics?.onlineRiders ?? 0}
+            <span style={{ fontSize: '0.9rem', fontWeight: 600, color: '#64748B', marginLeft: 4 }}>
+              / {metrics?.totalRiders ?? 0}
             </span>
           </div>
-          <div className="admin-metric-value" style={{ color: '#DC2626' }}>
-            {metrics?.cancelledOrders ?? 0}
-          </div>
-          <span className="admin-metric-subtext">Cancelled or timed out</span>
+          <span className="admin-metric-subtext">
+            {metrics?.verifiedRiders ?? 0} verified &bull; {metrics?.pendingRiders ?? 0} pending
+          </span>
         </div>
 
-        {/* CLICKABLE REGISTERED CUSTOMERS CARD (Test Contract Requirement) */}
+        {/* CLICKABLE REGISTERED CUSTOMERS CARD */}
         <div
           className="admin-metric-card accent-blue interactive"
           onClick={() => setShowCustomersModal(true)}
           style={{
             cursor: 'pointer',
-            border: '2px solid var(--color-primary)',
+            border: '1.5px solid var(--color-primary)',
             backgroundColor: '#F8FAFF'
           }}
           title="Click to view all registered customer phone numbers"
@@ -246,83 +214,14 @@ export const AdminOverviewPage: React.FC = () => {
           <div className="admin-metric-value" style={{ color: 'var(--color-primary)' }}>
             {metrics?.totalCustomers ?? customers.length}
           </div>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 4 }}>
-            <span className="admin-metric-subtext">Client phone records</span>
-            <span style={{ fontSize: '0.725rem', color: 'var(--color-primary)', fontWeight: 700, background: '#E0E7FF', padding: '2px 8px', borderRadius: 9999 }}>
-              Tap to view →
-            </span>
-          </div>
-        </div>
-      </div>
-
-      {/* KPI Section 2: Fleet & Verification Metrics */}
-      <div className="admin-grid-metrics">
-        <div className="admin-metric-card">
-          <div className="admin-metric-header">
-            <span className="admin-metric-label">Registered Riders</span>
-            <span className="admin-metric-icon">
-              <i className="fa-solid fa-motorcycle" />
-            </span>
-          </div>
-          <div className="admin-metric-value">{metrics?.totalRiders ?? 0}</div>
-          <span className="admin-metric-subtext">Total onboarded riders</span>
-        </div>
-
-        <div className="admin-metric-card accent-green">
-          <div className="admin-metric-header">
-            <span className="admin-metric-label">Online Riders</span>
-            <span className="admin-metric-icon">
-              <i className="fa-solid fa-circle-dot" style={{ color: '#059669' }} />
-            </span>
-          </div>
-          <div className="admin-metric-value" style={{ color: '#059669' }}>
-            {metrics?.onlineRiders ?? 0}
-          </div>
-          <span className="admin-metric-subtext">On duty & available</span>
-        </div>
-
-        <div className="admin-metric-card">
-          <div className="admin-metric-header">
-            <span className="admin-metric-label">Offline Riders</span>
-            <span className="admin-metric-icon">
-              <i className="fa-regular fa-circle" style={{ color: '#64748B' }} />
-            </span>
-          </div>
-          <div className="admin-metric-value" style={{ color: '#64748B' }}>
-            {metrics?.offlineRiders ?? 0}
-          </div>
-          <span className="admin-metric-subtext">Currently resting</span>
-        </div>
-
-        <div className="admin-metric-card accent-blue">
-          <div className="admin-metric-header">
-            <span className="admin-metric-label">Verified Riders</span>
-            <span className="admin-metric-icon">
-              <i className="fa-solid fa-shield-halved" style={{ color: 'var(--color-primary)' }} />
-            </span>
-          </div>
-          <div className="admin-metric-value" style={{ color: 'var(--color-primary)' }}>
-            {metrics?.verifiedRiders ?? 0}
-          </div>
-          <span className="admin-metric-subtext">Approved dispatch access</span>
-        </div>
-
-        <div className="admin-metric-card accent-amber">
-          <div className="admin-metric-header">
-            <span className="admin-metric-label">Pending Verification</span>
-            <span className="admin-metric-icon">
-              <i className="fa-solid fa-id-card" style={{ color: '#D97706' }} />
-            </span>
-          </div>
-          <div className="admin-metric-value" style={{ color: '#D97706' }}>
-            {metrics?.pendingRiders ?? 0}
-          </div>
-          <span className="admin-metric-subtext">Awaiting document check</span>
+          <span className="admin-metric-subtext" style={{ color: 'var(--color-primary)', fontWeight: 600 }}>
+            Tap to view contacts &rarr;
+          </span>
         </div>
 
         <div className="admin-metric-card accent-red">
           <div className="admin-metric-header">
-            <span className="admin-metric-label">Active Disputes</span>
+            <span className="admin-metric-label">Open Disputes</span>
             <span className="admin-metric-icon">
               <i className="fa-solid fa-scale-balanced" />
             </span>
@@ -330,79 +229,38 @@ export const AdminOverviewPage: React.FC = () => {
           <div className="admin-metric-value" style={{ color: openDisputesCount > 0 ? '#DC2626' : 'var(--color-dark-navy)' }}>
             {openDisputesCount}
           </div>
-          <span className="admin-metric-subtext">Under investigation</span>
+          <span className="admin-metric-subtext">
+            {metrics?.cancelledOrders ?? 0} cancelled trips overall
+          </span>
         </div>
       </div>
 
-      {/* Speed & Operational Cadence Card */}
-      <div className="admin-card">
-        <div className="admin-card-header">
-          <h2 className="admin-card-title">
-            <i className="fa-solid fa-stopwatch" />
-            <span>Dispatch Cadence & Speed</span>
-          </h2>
+      {/* Compact Operational Cadence Bar */}
+      <div className="admin-cadence-bar">
+        <div className="admin-cadence-item">
+          <span className="admin-cadence-item-label">Today</span>
+          <span className="admin-cadence-item-val">{metrics?.todayOrders ?? 0}</span>
         </div>
-        <div className="admin-card-body">
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 16 }}>
-            <div>
-              <div style={{ fontSize: '0.75rem', textTransform: 'uppercase', color: '#64748B', fontWeight: 700 }}>
-                Today&apos;s Trips
-              </div>
-              <div style={{ fontSize: '1.5rem', fontWeight: 800, color: 'var(--color-dark-navy)', marginTop: 2 }}>
-                {metrics?.todayOrders ?? 0}
-              </div>
-              <span style={{ fontSize: '0.75rem', color: '#94A3B8' }}>Since midnight UTC</span>
-            </div>
-
-            <div>
-              <div style={{ fontSize: '0.75rem', textTransform: 'uppercase', color: '#64748B', fontWeight: 700 }}>
-                This Week&apos;s Trips
-              </div>
-              <div style={{ fontSize: '1.5rem', fontWeight: 800, color: 'var(--color-dark-navy)', marginTop: 2 }}>
-                {metrics?.weekOrders ?? 0}
-              </div>
-              <span style={{ fontSize: '0.75rem', color: '#94A3B8' }}>Past 7 days</span>
-            </div>
-
-            <div>
-              <div style={{ fontSize: '0.75rem', textTransform: 'uppercase', color: '#64748B', fontWeight: 700 }}>
-                This Month
-              </div>
-              <div style={{ fontSize: '1.5rem', fontWeight: 800, color: 'var(--color-dark-navy)', marginTop: 2 }}>
-                {metrics?.monthOrders ?? 0}
-              </div>
-              <span style={{ fontSize: '0.75rem', color: '#94A3B8' }}>Current calendar month</span>
-            </div>
-
-            <div>
-              <div style={{ fontSize: '0.75rem', textTransform: 'uppercase', color: '#64748B', fontWeight: 700 }}>
-                Avg Acceptance Time
-              </div>
-              <div style={{ fontSize: '1.5rem', fontWeight: 800, color: 'var(--color-secondary)', marginTop: 2 }}>
-                {metrics?.avgAcceptanceSeconds != null
-                  ? `${Math.round(metrics.avgAcceptanceSeconds / 60)} min`
-                  : 'N/A'}
-              </div>
-              <span style={{ fontSize: '0.75rem', color: '#94A3B8' }}>Customer request to rider pick</span>
-            </div>
-
-            <div>
-              <div style={{ fontSize: '0.75rem', textTransform: 'uppercase', color: '#64748B', fontWeight: 700 }}>
-                Avg Transit Duration
-              </div>
-              <div style={{ fontSize: '1.5rem', fontWeight: 800, color: '#059669', marginTop: 2 }}>
-                {metrics?.avgCompletionSeconds != null
-                  ? `${Math.round(metrics.avgCompletionSeconds / 60)} min`
-                  : 'N/A'}
-              </div>
-              <span style={{ fontSize: '0.75rem', color: '#94A3B8' }}>Transit to delivery</span>
-            </div>
-          </div>
+        <div className="admin-cadence-item">
+          <span className="admin-cadence-item-label">7 Days</span>
+          <span className="admin-cadence-item-val">{metrics?.weekOrders ?? 0}</span>
+        </div>
+        <div className="admin-cadence-item">
+          <span className="admin-cadence-item-label">This Month</span>
+          <span className="admin-cadence-item-val">{metrics?.monthOrders ?? 0}</span>
+        </div>
+        <div className="admin-cadence-item">
+          <span className="admin-cadence-item-label">Avg Pickup</span>
+          <span className="admin-cadence-item-val" style={{ color: 'var(--color-secondary)' }}>
+            {metrics?.avgAcceptanceSeconds != null
+              ? `${Math.round(metrics.avgAcceptanceSeconds / 60)}m`
+              : '—'}
+          </span>
         </div>
       </div>
 
       {/* Two Column Section: Recent Trips & Recent Riders */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(360px, 1fr))', gap: 20 }}>
+      <div className="admin-two-col-grid">
         {/* Recent Trips Card */}
         <div className="admin-card">
           <div className="admin-card-header">
@@ -627,102 +485,90 @@ export const AdminOverviewPage: React.FC = () => {
         </div>
       </div>
 
-      {/* Recent Disputes Row */}
-      <div className="admin-card">
-        <div className="admin-card-header">
-          <h2 className="admin-card-title">
-            <i className="fa-solid fa-scale-balanced" />
-            <span>Recent Disputes & Complaints</span>
-          </h2>
-          <Link href="/portal/disputes" className="admin-action-btn">
-            Dispute Workspace →
-          </Link>
-        </div>
+      {/* Recent Disputes Row — Only shown when there are disputes to review */}
+      {recentDisputes.length > 0 && (
+        <div className="admin-card">
+          <div className="admin-card-header">
+            <h2 className="admin-card-title">
+              <i className="fa-solid fa-scale-balanced" />
+              <span>Recent Disputes &amp; Complaints ({recentDisputes.length})</span>
+            </h2>
+            <Link href="/portal/disputes" className="admin-action-btn">
+              Dispute Workspace →
+            </Link>
+          </div>
 
-        <div className="admin-card-body" style={{ padding: 16 }}>
-          {recentDisputes.length === 0 ? (
-            <div className="admin-empty-state">
-              <div className="admin-empty-icon">
-                <i className="fa-solid fa-sparkles" />
-              </div>
-              <div className="admin-empty-title">All Clear! No Active Disputes</div>
-              <p className="admin-empty-desc">
-                No customer or rider complaints have been filed in the system. Everything is operating smoothly.
-              </p>
-            </div>
-          ) : (
-            <>
-              {/* Desktop Table View */}
-              <div className="admin-desktop-table-view">
-                <div className="admin-table-wrap">
-                  <table className="admin-table">
-                    <thead>
-                      <tr>
-                        <th>Dispute Ref</th>
-                        <th>Order</th>
-                        <th>Reporter</th>
-                        <th>Category</th>
-                        <th>Status</th>
-                        <th>Date</th>
+          <div className="admin-card-body" style={{ padding: 16 }}>
+            {/* Desktop Table View */}
+            <div className="admin-desktop-table-view">
+              <div className="admin-table-wrap">
+                <table className="admin-table">
+                  <thead>
+                    <tr>
+                      <th>Dispute Ref</th>
+                      <th>Order</th>
+                      <th>Reporter</th>
+                      <th>Category</th>
+                      <th>Status</th>
+                      <th>Date</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {recentDisputes.map((d) => (
+                      <tr key={d.id}>
+                        <td style={{ fontWeight: 700, color: 'var(--color-primary)' }}>{d.disputeReference}</td>
+                        <td style={{ fontFamily: 'monospace' }}>{d.orderReference || '—'}</td>
+                        <td>
+                          <span style={{ textTransform: 'capitalize', fontWeight: 600 }}>{d.reporterType}</span> ({d.reporterPhone})
+                        </td>
+                        <td>
+                          <span style={{ textTransform: 'capitalize' }}>
+                            {d.category.replace(/_/g, ' ')}
+                          </span>
+                        </td>
+                        <td>
+                          <span className={`status-badge ${d.status}`}>{d.status}</span>
+                        </td>
+                        <td style={{ color: '#64748B', fontSize: '0.8rem' }}>
+                          {new Date(d.createdAt).toLocaleDateString()}
+                        </td>
                       </tr>
-                    </thead>
-                    <tbody>
-                      {recentDisputes.map((d) => (
-                        <tr key={d.id}>
-                          <td style={{ fontWeight: 700, color: 'var(--color-primary)' }}>{d.disputeReference}</td>
-                          <td style={{ fontFamily: 'monospace' }}>{d.orderReference || '—'}</td>
-                          <td>
-                            <span style={{ textTransform: 'capitalize', fontWeight: 600 }}>{d.reporterType}</span> ({d.reporterPhone})
-                          </td>
-                          <td>
-                            <span style={{ textTransform: 'capitalize' }}>
-                              {d.category.replace(/_/g, ' ')}
-                            </span>
-                          </td>
-                          <td>
-                            <span className={`status-badge ${d.status}`}>{d.status}</span>
-                          </td>
-                          <td style={{ color: '#64748B', fontSize: '0.8rem' }}>
-                            {new Date(d.createdAt).toLocaleDateString()}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
+                    ))}
+                  </tbody>
+                </table>
               </div>
+            </div>
 
-              {/* Mobile Cards View */}
-              <div className="admin-mobile-card-list">
-                {recentDisputes.map((d) => (
-                  <div key={d.id} className="admin-mobile-card">
-                    <div className="admin-mcard-top">
-                      <span className="admin-mcard-title">{d.disputeReference}</span>
-                      <span className={`status-badge ${d.status}`}>{d.status}</span>
+            {/* Mobile Cards View */}
+            <div className="admin-mobile-card-list">
+              {recentDisputes.map((d) => (
+                <div key={d.id} className="admin-mobile-card">
+                  <div className="admin-mcard-top">
+                    <span className="admin-mcard-title">{d.disputeReference}</span>
+                    <span className={`status-badge ${d.status}`}>{d.status}</span>
+                  </div>
+                  <div className="admin-mcard-body">
+                    <div className="admin-mcard-row">
+                      <span className="admin-mcard-label">Category:</span>
+                      <span className="admin-mcard-value" style={{ textTransform: 'capitalize' }}>
+                        {d.category.replace(/_/g, ' ')}
+                      </span>
                     </div>
-                    <div className="admin-mcard-body">
-                      <div className="admin-mcard-row">
-                        <span className="admin-mcard-label">Category:</span>
-                        <span className="admin-mcard-value" style={{ textTransform: 'capitalize' }}>
-                          {d.category.replace(/_/g, ' ')}
-                        </span>
-                      </div>
-                      <div className="admin-mcard-row">
-                        <span className="admin-mcard-label">Reporter:</span>
-                        <span className="admin-mcard-value">{d.reporterType} ({d.reporterPhone})</span>
-                      </div>
-                      <div className="admin-mcard-row">
-                        <span className="admin-mcard-label">Date:</span>
-                        <span className="admin-mcard-value">{new Date(d.createdAt).toLocaleDateString()}</span>
-                      </div>
+                    <div className="admin-mcard-row">
+                      <span className="admin-mcard-label">Reporter:</span>
+                      <span className="admin-mcard-value">{d.reporterType} ({d.reporterPhone})</span>
+                    </div>
+                    <div className="admin-mcard-row">
+                      <span className="admin-mcard-label">Date:</span>
+                      <span className="admin-mcard-value">{new Date(d.createdAt).toLocaleDateString()}</span>
                     </div>
                   </div>
-                ))}
-              </div>
-            </>
-          )}
+                </div>
+              ))}
+            </div>
+          </div>
         </div>
-      </div>
+      )}
 
       {/* =====================================================================
           REGISTERED CUSTOMERS NUMBERS MODAL / MOBILE BOTTOM SHEET

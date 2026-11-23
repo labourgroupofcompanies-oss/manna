@@ -365,7 +365,7 @@ export const AdminTripsPage: React.FC = () => {
                                 </span>
                               )}
                             </td>
-                            <td>{trip.operatingArea || 'Accra Central'}</td>
+                            <td>{trip.operatingArea || 'Kadjebi'}</td>
                             <td>
                               <span className={`status-badge ${trip.status}`}>{trip.status}</span>
                             </td>
@@ -451,7 +451,7 @@ export const AdminTripsPage: React.FC = () => {
 
                         <div className="admin-mcard-row">
                           <span className="admin-mcard-label">Area:</span>
-                          <span className="admin-mcard-value">{trip.operatingArea || 'Accra Central'}</span>
+                          <span className="admin-mcard-value">{trip.operatingArea || 'Kadjebi'}</span>
                         </div>
 
                         <div className="admin-mcard-row">
@@ -594,7 +594,7 @@ export const AdminTripsPage: React.FC = () => {
             </div>
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 20 }}>
+          <div className="admin-two-col-grid">
             {/* Operating Areas Breakdown */}
             <div className="admin-card">
               <div className="admin-card-header">
