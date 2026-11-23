@@ -132,7 +132,7 @@ export const AdminOverviewPage: React.FC = () => {
           <span className="admin-action-counter">{metrics?.totalCustomers ?? customers.length}</span>
         </button>
 
-        <Link href="/admin/verification" className="admin-quick-action-pill">
+        <Link href="/portal/verification" className="admin-quick-action-pill">
           <i className="fa-solid fa-shield-halved" />
           <span>Pending Verifications</span>
           {pendingVerificationCount > 0 && (
@@ -140,7 +140,7 @@ export const AdminOverviewPage: React.FC = () => {
           )}
         </Link>
 
-        <Link href="/admin/disputes" className="admin-quick-action-pill">
+        <Link href="/portal/disputes" className="admin-quick-action-pill">
           <i className="fa-solid fa-scale-balanced" />
           <span>Open Disputes</span>
           {openDisputesCount > 0 && (
@@ -148,12 +148,12 @@ export const AdminOverviewPage: React.FC = () => {
           )}
         </Link>
 
-        <Link href="/admin/trips" className="admin-quick-action-pill">
+        <Link href="/portal/trips" className="admin-quick-action-pill">
           <i className="fa-solid fa-route" />
           <span>Trips Feed</span>
         </Link>
 
-        <Link href="/admin/riders" className="admin-quick-action-pill">
+        <Link href="/portal/riders" className="admin-quick-action-pill">
           <i className="fa-solid fa-motorcycle" />
           <span>Rider Fleet</span>
         </Link>
@@ -410,7 +410,7 @@ export const AdminOverviewPage: React.FC = () => {
               <i className="fa-solid fa-route" />
               <span>Recent Trips</span>
             </h2>
-            <Link href="/admin/trips" className="admin-action-btn">
+            <Link href="/portal/trips" className="admin-action-btn">
               View All Trips →
             </Link>
           </div>
@@ -521,7 +521,7 @@ export const AdminOverviewPage: React.FC = () => {
               <i className="fa-solid fa-motorcycle" />
               <span>Recent Riders</span>
             </h2>
-            <Link href="/admin/riders" className="admin-action-btn">
+            <Link href="/portal/riders" className="admin-action-btn">
               Fleet Directory →
             </Link>
           </div>
@@ -634,7 +634,7 @@ export const AdminOverviewPage: React.FC = () => {
             <i className="fa-solid fa-scale-balanced" />
             <span>Recent Disputes & Complaints</span>
           </h2>
-          <Link href="/admin/disputes" className="admin-action-btn">
+          <Link href="/portal/disputes" className="admin-action-btn">
             Dispute Workspace →
           </Link>
         </div>
@@ -840,7 +840,7 @@ export const AdminOverviewPage: React.FC = () => {
                                   className="admin-action-btn primary"
                                   onClick={() => {
                                     setShowCustomersModal(false);
-                                    navigate('/admin/trips');
+                                    navigate('/portal/trips');
                                   }}
                                   style={{ padding: '4px 10px', fontSize: '0.75rem' }}
                                 >
@@ -901,7 +901,7 @@ export const AdminOverviewPage: React.FC = () => {
                 className="admin-action-btn primary"
                 onClick={() => {
                   setShowCustomersModal(false);
-                  navigate('/admin/customers');
+                  navigate('/portal/customers');
                 }}
               >
                 Open Full Customer Directory →

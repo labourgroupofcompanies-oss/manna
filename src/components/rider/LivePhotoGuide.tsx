@@ -15,6 +15,7 @@ export const LivePhotoGuide: React.FC<LivePhotoGuideProps> = ({
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const analysisCanvasRef = useRef<HTMLCanvasElement | null>(null);
+  const capturedPreviewRef = useRef<string | null>(null);
 
   // Component state
   const [cameraActive, setCameraActive] = useState(false);
@@ -38,28 +39,45 @@ export const LivePhotoGuide: React.FC<LivePhotoGuideProps> = ({
     setCameraActive(false);
   }, []);
 
-  // Start front camera
+  // Start front camera with graceful fallback
   const startCamera = useCallback(async () => {
     setCameraError(null);
     setCapturedBlob(null);
-    if (capturedPreview) {
-      URL.revokeObjectURL(capturedPreview);
+    if (capturedPreviewRef.current) {
+      URL.revokeObjectURL(capturedPreviewRef.current);
+      capturedPreviewRef.current = null;
       setCapturedPreview(null);
     }
 
     try {
-      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-        throw new Error('Camera access is not supported on this browser/device.');
+      if (typeof window !== 'undefined' && !window.isSecureContext) {
+        throw new Error(
+          'Live camera requires a secure (HTTPS) connection. Use the buttons below to take or upload a photo.'
+        );
       }
 
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: {
-          facingMode: 'user',
-          width: { ideal: 1080, min: 480 },
-          height: { ideal: 1080, min: 480 }
-        },
-        audio: false
-      });
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        throw new Error('Live camera is not supported in this browser. Upload a photo below instead.');
+      }
+
+      let stream: MediaStream;
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({
+          video: {
+            facingMode: 'user',
+            width: { ideal: 720 },
+            height: { ideal: 720 }
+          },
+          audio: false
+        });
+      } catch (constraintErr: unknown) {
+        const name = (constraintErr as DOMException)?.name || '';
+        if (name === 'OverconstrainedError' || name === 'ConstraintNotSatisfiedError') {
+          stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+        } else {
+          throw constraintErr;
+        }
+      }
 
       streamRef.current = stream;
       if (videoRef.current) {
@@ -68,18 +86,38 @@ export const LivePhotoGuide: React.FC<LivePhotoGuideProps> = ({
       }
       setCameraActive(true);
     } catch (err: unknown) {
-      const errorMsg =
-        err instanceof Error ? err.message : 'Could not access the front camera. Please allow camera permissions.';
-      setCameraError(errorMsg);
+      const domErr = err as DOMException;
+      const errName = domErr?.name || '';
+      let friendlyMsg: string;
+
+      if (errName === 'NotAllowedError' || errName === 'PermissionDeniedError') {
+        friendlyMsg =
+          'Camera permission was denied. Allow camera access in your browser settings and tap Try Again, or upload a clear photo below.';
+      } else if (errName === 'NotFoundError' || errName === 'DevicesNotFoundError') {
+        friendlyMsg = 'No camera was found on this device. Upload a clear headshot photo below.';
+      } else if (errName === 'NotReadableError' || errName === 'TrackStartError') {
+        friendlyMsg = 'Your camera is currently in use by another app. Close it and tap Try Again, or upload a photo below.';
+      } else {
+        friendlyMsg =
+          err instanceof Error
+            ? err.message
+            : 'Could not open the live camera. Allow camera access or upload a photo below.';
+      }
+
+      setCameraError(friendlyMsg);
       setCameraActive(false);
     }
-  }, [capturedPreview]);
+  }, []);
 
-  // Initial camera startup
+  // Initial camera startup (runs once on mount)
   useEffect(() => {
     startCamera();
     return () => {
       stopCameraStream();
+      if (capturedPreviewRef.current) {
+        URL.revokeObjectURL(capturedPreviewRef.current);
+        capturedPreviewRef.current = null;
+      }
     };
   }, [startCamera, stopCameraStream]);
 
@@ -159,6 +197,7 @@ export const LivePhotoGuide: React.FC<LivePhotoGuideProps> = ({
         if (blob) {
           setCapturedBlob(blob);
           const previewUrl = URL.createObjectURL(blob);
+          capturedPreviewRef.current = previewUrl;
           setCapturedPreview(previewUrl);
         }
       },
@@ -250,20 +289,43 @@ export const LivePhotoGuide: React.FC<LivePhotoGuideProps> = ({
               </svg>
               <h4 className="camera-error-title">Camera Unavailable</h4>
               <p className="camera-error-desc">{cameraError}</p>
-              <label className="btn-fallback-camera">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" />
-                  <circle cx="12" cy="13" r="4" />
-                </svg>
-                <span>Take Photo via Device Camera</span>
-                <input
-                  type="file"
-                  accept="image/*"
-                  capture="user"
-                  onChange={handleFallbackFile}
-                  style={{ display: 'none' }}
-                />
-              </label>
+              <div className="camera-error-actions">
+                <button
+                  type="button"
+                  className="btn-retry-camera"
+                  onClick={startCamera}
+                >
+                  Try Again
+                </button>
+                <label className="btn-fallback-camera">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" />
+                    <circle cx="12" cy="13" r="4" />
+                  </svg>
+                  <span>Device Camera</span>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    capture="user"
+                    onChange={handleFallbackFile}
+                    style={{ display: 'none' }}
+                  />
+                </label>
+                <label className="btn-upload-gallery">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                    <polyline points="17 8 12 3 7 8" />
+                    <line x1="12" y1="3" x2="12" y2="15" />
+                  </svg>
+                  <span>Upload Photo from Device</span>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={handleFallbackFile}
+                    style={{ display: 'none' }}
+                  />
+                </label>
+              </div>
             </div>
           ) : capturedPreview ? (
             <img src={capturedPreview} alt="Captured Rider Preview" className="camera-captured-preview" />

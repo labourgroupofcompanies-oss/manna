@@ -45,7 +45,7 @@ export const AdminSettingsPage: React.FC<AdminSettingsPageProps> = ({ adminUser 
         recipientType: target,
         title: `🔔 Test Alert: ${targetLabel}`,
         body: `Firebase push notification test dispatch executed at ${new Date().toLocaleTimeString()}.`,
-        clickAction: target === 'admin' ? '/admin/dashboard' : target === 'rider' ? '/rider' : '/'
+        clickAction: target === 'admin' ? '/portal/dashboard' : target === 'rider' ? '/rider' : '/'
       });
 
       playNotificationChime(target === 'rider' ? 'order' : 'ride');

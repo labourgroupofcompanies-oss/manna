@@ -313,14 +313,14 @@ class PushNotificationService {
           } else if (typeof window !== 'undefined' && recordRecipientType && recordRecipientType !== 'all') {
             // 3. Portal-level scoping for non-targeted broadcasts
             const path = window.location.pathname || '/';
-            if (recordRecipientType === 'admin' && !path.startsWith('/admin')) {
+            if (recordRecipientType === 'admin' && !path.startsWith('/portal')) {
               return;
             }
             if (recordRecipientType === 'rider' && !path.startsWith('/rider')) {
               return;
             }
             if (recordRecipientType === 'customer') {
-              if (path.startsWith('/admin') || path.startsWith('/rider')) {
+              if (path.startsWith('/portal') || path.startsWith('/rider')) {
                 return;
               }
               // Order-specific customer notifications (e.g. rider accepted / completed ride)
@@ -373,6 +373,8 @@ class PushNotificationService {
     bookingToken?: string;
     recipientPhone?: string;
     recipientId?: string;
+    pickupStation?: string;
+    dispatchWave?: 1 | 2 | 3;
     clickAction?: string;
     data?: Record<string, string>;
     skipEdgeFunction?: boolean;
@@ -396,6 +398,8 @@ class PushNotificationService {
             recipient_phone: params.recipientPhone,
             order_reference: params.orderReference,
             booking_token: params.bookingToken,
+            pickup_station: params.pickupStation,
+            dispatch_wave: params.dispatchWave,
             title: params.title,
             body: params.body,
             click_action: params.clickAction,
@@ -466,24 +470,34 @@ class PushNotificationService {
     orderType: string;
     customerPhone: string;
     orderDescription?: string | null;
+    pickupStation?: string | null;
+    dispatchWave?: 1 | 2 | 3;
   }): Promise<void> {
-    const descSummary = order.orderType === 'voice' ? 'Voice Ride Request' : (order.orderDescription || 'Okada ride requested');
-    const brief = descSummary.length > 50 ? `${descSummary.substring(0, 47)}...` : descSummary;
+    const rawDesc =
+      order.orderType === 'voice'
+        ? 'Voice ride request — tap to listen'
+        : (order.orderDescription || 'New ride request').replace(/^\[(Ride|Parcel Delivery)\]\s*/i, '');
+    const brief = rawDesc.length > 60 ? `${rawDesc.substring(0, 57)}...` : rawDesc;
+    const title = order.pickupStation ? `New Ride • ${order.pickupStation}` : 'New Ride Request';
 
-    // 1. Notify Riders via Edge Function with verified capability token
+    // 1. Notify Riders via Edge Function with verified capability token & station wave
     await this.dispatchNotification({
       recipientType: 'rider',
-      title: `🛵 New Ride Request: ${order.orderReference}`,
-      body: `${brief}. Open Rider Dashboard to accept.`,
+      title,
+      body: brief,
       orderReference: order.orderReference,
       bookingToken: order.bookingToken || order.orderId,
       recipientPhone: order.customerPhone,
+      pickupStation: order.pickupStation || undefined,
+      dispatchWave: order.dispatchWave || 1,
       clickAction: '/rider',
       useAnonymousAuth: true,
       data: {
         type: 'new_order_broadcast',
         orderReference: order.orderReference,
         orderType: order.orderType,
+        pickupStation: order.pickupStation || '',
+        dispatchWave: String(order.dispatchWave || 1),
         customerPhone: order.customerPhone,
         bookingToken: order.bookingToken || order.orderId || ''
       }
@@ -529,14 +543,14 @@ class PushNotificationService {
     motorcycleRegistration?: string;
     verificationStatus?: string;
   }): Promise<void> {
-    const bikeInfo = rider.motorcycleModel ? ` (${rider.motorcycleModel} - ${rider.motorcycleRegistration})` : '';
+    const plateInfo = rider.motorcycleRegistration ? ` (${rider.motorcycleRegistration})` : '';
     const isRiderApproved = rider.verificationStatus === undefined || rider.verificationStatus === 'approved';
 
-    // Notify Customer (uses Edge Function FCM when rider is admin-approved, or Realtime fallback when pending)
+    // Notify Customer
     await this.dispatchNotification({
       recipientType: 'customer',
-      title: `🎉 Rider Found for ${order.orderReference}!`,
-      body: `${rider.fullName}${bikeInfo} has accepted your trip and is heading to you.`,
+      title: 'Rider on the way',
+      body: `${rider.fullName}${plateInfo} accepted your ride.`,
       orderReference: order.orderReference,
       recipientPhone: order.customerPhone,
       clickAction: `/?ref=${order.orderReference}&tab=track`,
@@ -555,7 +569,7 @@ class PushNotificationService {
       title: `🤝 Order Accepted: ${order.orderReference}`,
       body: `Assigned to ${rider.fullName} (${rider.phoneNumber})`,
       orderReference: order.orderReference,
-      clickAction: '/admin/orders',
+      clickAction: '/portal/orders',
       skipEdgeFunction: true,
       data: {
         type: 'order_accepted_admin',
@@ -578,8 +592,8 @@ class PushNotificationService {
 
     await this.dispatchNotification({
       recipientType: 'customer',
-      title: `✅ Trip Completed: ${order.orderReference}`,
-      body: 'Your ride has safely concluded. Thank you for booking with Okada Book!',
+      title: 'Ride Completed',
+      body: 'Thank you for riding with Manna.',
       orderReference: order.orderReference,
       recipientPhone: order.customerPhone,
       clickAction: `/?ref=${order.orderReference}&tab=track`,
@@ -605,7 +619,7 @@ class PushNotificationService {
       recipientType: 'admin',
       title: `👤 New Rider Registered: ${rider.fullName}`,
       body: `Phone: ${rider.phoneNumber} • Area: ${rider.operatingArea}. Review verification in Admin Portal.`,
-      clickAction: '/admin/riders',
+      clickAction: '/portal/riders',
       skipEdgeFunction: true,
       data: {
         type: 'rider_registered',
@@ -719,7 +733,7 @@ class PushNotificationService {
       admin: {
         title: '🛡️ KABA Admin System Notice (Test)',
         body: 'Operator dispatch channels and push services are verified operational.',
-        clickAction: '/admin/settings',
+        clickAction: '/portal/settings',
         data: { type: 'test_admin' }
       }
     };

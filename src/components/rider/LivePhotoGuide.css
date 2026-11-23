@@ -530,3 +530,50 @@
   color: #0F172A;
   border-color: #94A3B8;
 }
+
+/* Camera Error Action Stack */
+.camera-error-actions {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 8px;
+  width: 100%;
+  max-width: 240px;
+  margin-top: 6px;
+}
+
+.btn-retry-camera {
+  background: #FFFFFF;
+  color: #063A9B;
+  border: 1.5px solid #BFDBFE;
+  border-radius: 10px;
+  padding: 9px 14px;
+  font-size: 0.84rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+}
+
+.btn-retry-camera:hover {
+  background: #EFF6FF;
+}
+
+.btn-upload-gallery {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  background: #F8FAFC;
+  color: #1E293B;
+  border: 1.5px solid #CBD5E1;
+  border-radius: 10px;
+  padding: 9px 14px;
+  font-size: 0.84rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+}
+
+.btn-upload-gallery:hover {
+  background: #E2E8F0;
+}

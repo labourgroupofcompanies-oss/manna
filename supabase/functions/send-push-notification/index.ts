@@ -41,6 +41,8 @@ interface PushNotificationRequest {
   order_reference?: string;
   booking_token?: string;
   order_id?: string;
+  pickup_station?: string;
+  dispatch_wave?: number;
   title: string;
   body: string;
   data?: Record<string, unknown>;
@@ -576,8 +578,11 @@ serve(async (req: Request) => {
       if (recentBroadcast) {
         const broadcastAgeSeconds = (Date.now() - new Date(recentBroadcast.created_at).getTime()) / 1000;
         const wasSuccessful = recentBroadcast.data?.fcm_accepted === true || recentBroadcast.data?.realtime_dispatched === true;
+        const requestedWave = Number(body.dispatch_wave) || 1;
+        const previousWave = Number(recentBroadcast.data?.dispatchWave) || 1;
+        const isWaveEscalation = requestedWave > previousWave;
 
-        if (broadcastAgeSeconds < 120 && wasSuccessful) {
+        if (!isWaveEscalation && broadcastAgeSeconds < 120 && wasSuccessful) {
           return new Response(
             JSON.stringify({
               success: true,
@@ -617,10 +622,30 @@ serve(async (req: Request) => {
             targetTokens = specificRiderTokens.map((r: { token: string }) => r.token);
           }
         } else {
-          // Enforce online and non-suspended criteria via get_online_rider_tokens RPC for ride broadcasts
-          const { data: riderTokens, error: riderErr } = await supabaseAdmin.rpc('get_online_rider_tokens');
-          if (!riderErr && Array.isArray(riderTokens)) {
-            targetTokens = riderTokens.map((r: { token: string }) => r.token);
+          // Station-based wave targeting (Wave 1: exact station, Wave 2: nearby stations, Wave 3: all)
+          const pickupStation = (body.pickup_station || '').trim();
+          const dispatchWave = Number(body.dispatch_wave) || 1;
+
+          if (pickupStation) {
+            const { data: waveTokens, error: waveErr } = await supabaseAdmin.rpc(
+              'get_station_wave_rider_tokens',
+              { p_pickup_station: pickupStation, p_wave: dispatchWave }
+            );
+            if (!waveErr && Array.isArray(waveTokens) && waveTokens.length > 0) {
+              targetTokens = waveTokens.map((r: { token: string }) => r.token);
+            } else if (waveErr) {
+              // Fallback to all online riders if wave RPC is not deployed yet
+              const { data: riderTokens, error: riderErr } = await supabaseAdmin.rpc('get_online_rider_tokens');
+              if (!riderErr && Array.isArray(riderTokens)) {
+                targetTokens = riderTokens.map((r: { token: string }) => r.token);
+              }
+            }
+          } else {
+            // Enforce online and non-suspended criteria via get_online_rider_tokens RPC for ride broadcasts
+            const { data: riderTokens, error: riderErr } = await supabaseAdmin.rpc('get_online_rider_tokens');
+            if (!riderErr && Array.isArray(riderTokens)) {
+              targetTokens = riderTokens.map((r: { token: string }) => r.token);
+            }
           }
         }
       } else if (recipient_type === 'admin') {
@@ -702,6 +727,10 @@ serve(async (req: Request) => {
 
         for (const token of targetTokens) {
           try {
+            const resolvedIcon =
+              icon && icon !== '/favicon.svg' && icon !== '/icons/icon-192x192.png'
+                ? icon
+                : '/icons/notification-icon.png';
             const messageBody = {
               message: {
                 token,
@@ -710,17 +739,27 @@ serve(async (req: Request) => {
                   body
                 },
                 data: fcmDataPayload,
+                android: {
+                  priority: 'high'
+                },
+                apns: {
+                  headers: {
+                    'apns-priority': '10'
+                  }
+                },
                 webpush: {
                   headers: {
-                    Urgency: 'high'
+                    Urgency: 'high',
+                    TTL: '300'
                   },
                   notification: {
                     title,
                     body,
-                    icon,
-                    badge: '/favicon.svg',
-                    tag: order_reference || 'okada-book-notification',
-                    requireInteraction: true
+                    icon: resolvedIcon,
+                    badge: '/icons/notification-badge.png',
+                    tag: order_reference || 'manna-notification',
+                    requireInteraction: true,
+                    vibrate: [200, 100, 200]
                   },
                   fcm_options: {
                     link: click_action

@@ -20,7 +20,7 @@ export const AdminLoginPage: React.FC = () => {
       try {
         const { isAdmin } = await adminService.checkIsAdmin();
         if (isMounted && isAdmin) {
-          navigate('/admin/dashboard', { replace: true });
+          navigate('/portal/dashboard', { replace: true });
         }
       } finally {
         if (isMounted) {
@@ -48,7 +48,7 @@ export const AdminLoginPage: React.FC = () => {
     try {
       const result = await adminService.loginAdmin(cleanEmail, password);
       if (result.success) {
-        navigate('/admin/dashboard', { replace: true });
+        navigate('/portal/dashboard', { replace: true });
       } else {
         setErrorMessage(result.error || 'Login failed. Please verify your credentials.');
       }

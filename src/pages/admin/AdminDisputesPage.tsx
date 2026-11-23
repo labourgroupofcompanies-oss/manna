@@ -131,7 +131,7 @@ export const AdminDisputesPage: React.FC = () => {
           recipientType: 'admin',
           title: `⚠️ New Dispute: ${createForm.orderReference || createForm.reporterPhone}`,
           body: `${createForm.category.replace(/_/g, ' ')}: ${createForm.description}`,
-          clickAction: '/admin/disputes',
+          clickAction: '/portal/disputes',
           data: {
             type: 'dispute_created',
             orderReference: createForm.orderReference || ''

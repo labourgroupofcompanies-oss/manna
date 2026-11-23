@@ -1,6 +1,16 @@
 import React, { useState, useId, useEffect } from 'react';
 import { useVoiceRecorder } from '../../hooks';
-import { validateGhanaPhone } from '../../utils';
+import {
+  validateGhanaPhone,
+  validateGuidedTextOrder,
+  formatGuidedOrderDescription,
+  getRecentPlaces,
+  saveRecentPlaces,
+  QUICK_NOTE_CHIPS,
+  STATIONS_BY_ZONE,
+  matchStation,
+  type ServiceType
+} from '../../utils';
 import { orderService, pushNotificationService } from '../../services';
 import { mediaUploadManager } from '../../services/storage/mediaUploadManager';
 import { offlineMediaQueue, type QueuedUploadItem } from '../../services/storage/offlineMediaQueue';
@@ -20,7 +30,10 @@ export const CustomerBookingForm: React.FC<CustomerBookingFormProps> = ({
   onSwitchToTrack
 }) => {
   const phoneInputId = useId();
-  const textInputId = useId();
+  const stationSelectId = useId();
+  const pickupInputId = useId();
+  const destinationInputId = useId();
+  const noteInputId = useId();
 
   // Contact number state (remember last used phone for repeat bookings)
   const [phone, setPhone] = useState(() => {
@@ -33,11 +46,21 @@ export const CustomerBookingForm: React.FC<CustomerBookingFormProps> = ({
   });
   const [phoneTouched, setPhoneTouched] = useState(false);
 
+  // Service type: 'ride' (default) or 'delivery'
+  const [serviceType, setServiceType] = useState<ServiceType>('ride');
+
   // Order mode state: 'type' or 'voice' (default: 'type')
   const [orderMode, setOrderMode] = useState<'type' | 'voice'>('type');
 
-  // Text request state
-  const [textRequest, setTextRequest] = useState('');
+  // Guided text order fields & nearest pickup station (for Wave 1 dispatch)
+  const [pickupStation, setPickupStation] = useState('');
+  const [pickup, setPickup] = useState('');
+  const [destination, setDestination] = useState('');
+  const [extraNote, setExtraNote] = useState('');
+  const [pickupTouched, setPickupTouched] = useState(false);
+  const [destinationTouched, setDestinationTouched] = useState(false);
+  const [activeRouteField, setActiveRouteField] = useState<'pickup' | 'destination'>('pickup');
+  const [recentPlaces, setRecentPlaces] = useState<string[]>(() => getRecentPlaces());
 
   // Voice recording hook
   const voiceRecorder = useVoiceRecorder();
@@ -89,9 +112,23 @@ export const CustomerBookingForm: React.FC<CustomerBookingFormProps> = ({
   const phoneValidation = validateGhanaPhone(phone);
   const isPhoneValid = phoneValidation.isValid;
 
+  const guidedValidation = validateGuidedTextOrder({
+    serviceType,
+    pickup,
+    destination,
+    extraNote
+  });
+
+  const formattedTextDescription = formatGuidedOrderDescription({
+    serviceType,
+    pickup,
+    destination,
+    extraNote
+  });
+
   const isOrderDetailsProvided =
     orderMode === 'type'
-      ? textRequest.trim().length > 0
+      ? guidedValidation.isValid
       : Boolean(voiceRecorder.audioBlob) && !voiceRecorder.isRecording;
 
   const isFormValid = isPhoneValid && isOrderDetailsProvided;
@@ -101,8 +138,41 @@ export const CustomerBookingForm: React.FC<CustomerBookingFormProps> = ({
     if (submissionError) setSubmissionError(null);
   };
 
-  const handlePhoneBlur = () => {
-    setPhoneTouched(true);
+  const handleSwapRoute = () => {
+    setPickup(destination);
+    setDestination(pickup);
+  };
+
+  const handleSelectRecentPlace = (place: string) => {
+    if (activeRouteField === 'pickup' || !pickup.trim()) {
+      setPickup(place);
+      setActiveRouteField('destination');
+    } else {
+      setDestination(place);
+    }
+    if (submissionError) setSubmissionError(null);
+  };
+
+  const handleToggleQuickNote = (chip: string) => {
+    const trimmed = extraNote.trim();
+    const parts = trimmed ? trimmed.split(',').map((p) => p.trim()).filter(Boolean) : [];
+    const existsIndex = parts.findIndex((p) => p.toLowerCase() === chip.toLowerCase());
+
+    if (existsIndex >= 0) {
+      parts.splice(existsIndex, 1);
+    } else {
+      parts.push(chip);
+    }
+    setExtraNote(parts.join(', '));
+    if (submissionError) setSubmissionError(null);
+  };
+
+  const isChipActive = (chip: string) => {
+    const parts = extraNote
+      .split(',')
+      .map((p) => p.trim().toLowerCase())
+      .filter(Boolean);
+    return parts.includes(chip.toLowerCase());
   };
 
   // Handle Order Submission
@@ -110,17 +180,34 @@ export const CustomerBookingForm: React.FC<CustomerBookingFormProps> = ({
     e.preventDefault();
     if (!isFormValid || isSubmitting) return;
 
+    // Trigger browser notification permission directly inside the user's tap gesture
+    // (mobile Chrome & iOS PWA block Notification.requestPermission() after an async await)
+    if (
+      typeof window !== 'undefined' &&
+      'Notification' in window &&
+      Notification.permission === 'default'
+    ) {
+      Notification.requestPermission().catch(() => {});
+    }
+
     setIsSubmitting(true);
     setSubmissionError(null);
     setOfflineNotice(null);
     setUploadPercentage(null);
 
     try {
+      // Resolve pickup station from explicit selector OR smart-matched from typed pickup text
+      const resolvedStation =
+        pickupStation ||
+        (orderMode === 'type' ? matchStation(pickup)?.name || '' : '') ||
+        undefined;
+
       const response = await orderService.submitOrder(
         {
           customerPhone: phoneValidation.formatted || phone.trim(),
           orderType: orderMode === 'type' ? 'text' : 'voice',
-          orderDescription: orderMode === 'type' ? textRequest.trim() : undefined,
+          orderDescription: orderMode === 'type' ? formattedTextDescription : undefined,
+          pickupStation: resolvedStation,
           audioFile: orderMode === 'voice' && voiceRecorder.audioBlob ? voiceRecorder.audioBlob : undefined,
           durationSeconds: voiceRecorder.recordingDuration
         },
@@ -129,11 +216,10 @@ export const CustomerBookingForm: React.FC<CustomerBookingFormProps> = ({
         }
       );
 
-      // Handle queued offline state
       if (response.isQueuedOffline) {
         setOfflineNotice(
           response.message ||
-            'Your order has been safely saved on your device and will dispatch automatically once internet connection is restored.'
+            'Saved offline. Your order will be sent automatically once internet is back.'
         );
         return;
       }
@@ -143,7 +229,6 @@ export const CustomerBookingForm: React.FC<CustomerBookingFormProps> = ({
         return;
       }
 
-      // Save customer phone locally for faster repeat bookings
       const normalizedPhone = phoneValidation.formatted || phone.trim();
       if (typeof window !== 'undefined' && window.localStorage && normalizedPhone) {
         try {
@@ -153,14 +238,18 @@ export const CustomerBookingForm: React.FC<CustomerBookingFormProps> = ({
         }
       }
 
-      // Successful order confirmed by backend
+      if (orderMode === 'type') {
+        setRecentPlaces(saveRecentPlaces([pickup, destination]));
+      }
+
       const confirmedOrder: Order = {
         id: response.orderId || response.orderReference,
         orderReference: response.orderReference,
         bookingToken: response.bookingToken,
         customerPhone: normalizedPhone,
         orderType: orderMode === 'type' ? 'text' : 'voice',
-        requestDescription: orderMode === 'type' ? textRequest.trim() : 'Voice Order Request',
+        requestDescription: orderMode === 'type' ? formattedTextDescription : 'Voice Order Request',
+        pickupStation: resolvedStation || null,
         voiceRecordingPath: response.voiceRecordingPath || null,
         voiceNote:
           orderMode === 'voice' && voiceRecorder.audioUrl
@@ -176,19 +265,19 @@ export const CustomerBookingForm: React.FC<CustomerBookingFormProps> = ({
 
       orderService.saveOrderToLocalHistory(confirmedOrder);
 
-      // Trigger Firebase push notification to all available online riders
       pushNotificationService.notifyOrderCreated({
         orderReference: confirmedOrder.orderReference,
         bookingToken: response.bookingToken,
         orderId: confirmedOrder.id,
         orderType: confirmedOrder.orderType,
         customerPhone: confirmedOrder.customerPhone,
-        orderDescription: confirmedOrder.requestDescription
+        orderDescription: confirmedOrder.requestDescription,
+        pickupStation: resolvedStation,
+        dispatchWave: 1
       }).catch((notifyErr) => {
         console.warn('Push notification dispatch warning:', notifyErr);
       });
 
-      // Attempt to link customer device FCM token to this order for live status updates
       pushNotificationService.registerCustomerNotifications({
         orderReference: confirmedOrder.orderReference,
         phoneNumber: confirmedOrder.customerPhone
@@ -209,13 +298,17 @@ export const CustomerBookingForm: React.FC<CustomerBookingFormProps> = ({
 
   const handleResetForNewRide = () => {
     setSubmittedOrder(null);
-    setTextRequest('');
+    setPickupStation('');
+    setPickup('');
+    setDestination('');
+    setExtraNote('');
+    setPickupTouched(false);
+    setDestinationTouched(false);
     setSubmissionError(null);
     setPhoneTouched(false);
     voiceRecorder.resetRecording();
   };
 
-  // Render Confirmation & Live Tracking Screen
   if (submittedOrder) {
     return (
       <div className="okada-screen-wrapper">
@@ -227,8 +320,6 @@ export const CustomerBookingForm: React.FC<CustomerBookingFormProps> = ({
             onBookAnother={handleResetForNewRide}
             onTrackAnother={onSwitchToTrack}
           />
-
-          {/* Bottom Skyline */}
           <div className="accra-skyline-footer" aria-hidden="true" />
         </div>
       </div>
@@ -237,84 +328,33 @@ export const CustomerBookingForm: React.FC<CustomerBookingFormProps> = ({
 
   return (
     <div className="okada-screen-wrapper">
-      {/* 1. Top Hero Section with Manna Logo and Rider */}
       <MannaHeroBanner ariaLabel="Manna Branding Header" />
 
-      {/* 2. White Card Sheet overlapping hero */}
       <div className="okada-white-sheet">
-        {onlineRidersCount !== null && (
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: '8px',
-              padding: '8px 12px',
-              marginBottom: '10px',
-              borderRadius: '10px',
-              fontSize: '0.82rem',
-              fontWeight: 600,
-              background: onlineRidersCount > 0 ? '#ECFDF5' : '#FFFBEB',
-              color: onlineRidersCount > 0 ? '#065F46' : '#92400E',
-              border: `1px solid ${onlineRidersCount > 0 ? '#A7F3D0' : '#FDE68A'}`
-            }}
-            role="status"
-          >
-            <span
-              style={{
-                width: 8,
-                height: 8,
-                borderRadius: '50%',
-                background: onlineRidersCount > 0 ? '#10B981' : '#F59E0B',
-                display: 'inline-block'
-              }}
-            />
-            {onlineRidersCount > 0
-              ? `${onlineRidersCount} Okada ${onlineRidersCount === 1 ? 'rider' : 'riders'} online nearby`
-              : 'No riders online right now — you can still place a request'}
-          </div>
-        )}
-
-        {onSwitchToTrack && (
-          <div className="quick-track-banner">
-            <span className="quick-track-text">Already placed a ride request?</span>
-            <button
-              type="button"
-              className="quick-track-btn"
-              onClick={onSwitchToTrack}
-            >
-              Track Status &rarr;
-            </button>
+        {/* Subtle online riders pill (only shown when riders are online) */}
+        {onlineRidersCount !== null && onlineRidersCount > 0 && (
+          <div className="online-riders-pill" role="status">
+            <span className="online-dot" />
+            <span>
+              {onlineRidersCount} {onlineRidersCount === 1 ? 'rider' : 'riders'} nearby
+            </span>
           </div>
         )}
 
         <form onSubmit={handleSubmit} noValidate className="booking-form-content">
-          {/* A. Your Contact Section */}
-          <div className="contact-section">
-            <div className="contact-header-row">
-              <div className="contact-icon-circle" aria-hidden="true">
-                {/* Telephone Handset Icon */}
-                <svg width="22" height="22" viewBox="0 0 24 24" fill="white">
-                  <path d="M6.62 10.79a15.053 15.053 0 006.59 6.59l2.2-2.2a1 1 0 011.02-.24c1.12.37 2.33.57 3.57.57a1 1 0 011 1V20a1 1 0 01-1 1A17 17 0 013 4a1 1 0 011-1h3.5a1 1 0 011 1c0 1.25.2 2.45.57 3.57a1 1 0 01-.25 1.02l-2.2 2.2z" />
-                </svg>
-              </div>
-              <div className="contact-text-group">
-                <label htmlFor={phoneInputId} className="contact-title">
-                  Your Contact
-                </label>
-                <span className="contact-subtitle">Enter your phone number</span>
-              </div>
-            </div>
-
-            {/* Phone Input Box */}
-            <div className="phone-input-box">
+          {/* 1. Compact Phone Input */}
+          <div className="compact-field-group">
+            <label htmlFor={phoneInputId} className="compact-label">
+              Phone Number
+            </label>
+            <div className={`phone-input-box ${isPhoneValid ? 'valid' : ''}`}>
               <div className="phone-icon-addon" aria-hidden="true">
                 <svg
-                  width="22"
-                  height="22"
+                  width="18"
+                  height="18"
                   viewBox="0 0 24 24"
                   fill="none"
-                  stroke="#101B3D"
+                  stroke="#063A9B"
                   strokeWidth="2.2"
                   strokeLinecap="round"
                   strokeLinejoin="round"
@@ -331,110 +371,306 @@ export const CustomerBookingForm: React.FC<CustomerBookingFormProps> = ({
                 placeholder="e.g. 0245660622"
                 value={phone}
                 onChange={handlePhoneChange}
-                onBlur={handlePhoneBlur}
+                onBlur={() => setPhoneTouched(true)}
                 className="phone-native-input"
                 aria-describedby="phone-feedback-msg"
               />
+              {isPhoneValid && (
+                <span className="phone-valid-check" aria-hidden="true">✓</span>
+              )}
             </div>
 
-            {/* Validation Feedback */}
-            <div id="phone-feedback-msg" className="phone-feedback-row" aria-live="polite">
-              {phoneTouched && !isPhoneValid && (
+            {phoneTouched && !isPhoneValid && (
+              <div id="phone-feedback-msg" className="phone-feedback-row" aria-live="polite">
                 <span className="feedback-error-text">
-                  {phoneValidation.error || 'Please enter a valid 10-digit Ghanaian number'}
+                  {phoneValidation.error || 'Enter a valid 10-digit Ghana number'}
                 </span>
-              )}
-              {isPhoneValid && (
-                <span className="feedback-success-text">
-                  ✓ Valid {phoneValidation.carrier} ({phoneValidation.formatted})
-                </span>
-              )}
+              </div>
+            )}
+          </div>
+
+          {/* 2. Nearest Moto Station (dispatches to riders there first — separate from exact pickup spot) */}
+          <div className="compact-field-group">
+            <label htmlFor={stationSelectId} className="compact-label">
+              Nearest Moto Station
+            </label>
+            <div className="station-select-wrap">
+              <span className="station-select-icon" aria-hidden="true">📍</span>
+              <select
+                id={stationSelectId}
+                value={pickupStation}
+                onChange={(e) => {
+                  setPickupStation(e.target.value);
+                  if (submissionError) setSubmissionError(null);
+                }}
+                className="station-native-select"
+              >
+                <option value="">Choose nearest station</option>
+                <optgroup label="Kadjebi Town">
+                  {STATIONS_BY_ZONE['Kadjebi Town'].map((st) => (
+                    <option key={st.slug} value={st.name}>
+                      {st.name}
+                    </option>
+                  ))}
+                </optgroup>
+                <optgroup label="Outside Kadjebi Town">
+                  {STATIONS_BY_ZONE['Outside Kadjebi Town'].map((st) => (
+                    <option key={st.slug} value={st.name}>
+                      {st.name}
+                    </option>
+                  ))}
+                </optgroup>
+              </select>
             </div>
           </div>
 
-          {/* B. Place Your Order Section */}
-          <div className="place-order-section">
-            <h3 className="place-order-title">Place Your Order</h3>
+          {/* 3. Compact Ride / Parcel + Type / Voice Controls */}
+          <div className="compact-controls-stack">
+            <div className="compact-segment-bar" role="radiogroup" aria-label="Service type">
+              <button
+                type="button"
+                role="radio"
+                aria-checked={serviceType === 'ride'}
+                className={`compact-segment-btn ${serviceType === 'ride' ? 'active' : ''}`}
+                onClick={() => setServiceType('ride')}
+              >
+                🛵 Ride
+              </button>
+              <button
+                type="button"
+                role="radio"
+                aria-checked={serviceType === 'delivery'}
+                className={`compact-segment-btn ${serviceType === 'delivery' ? 'active' : ''}`}
+                onClick={() => setServiceType('delivery')}
+              >
+                📦 Parcel
+              </button>
+            </div>
 
-            {/* Two Large Selectable Method Buttons */}
-            <div className="order-methods-row" role="tablist" aria-label="Select Order Method">
-              {/* Type Order Option */}
+            <div className="order-methods-row compact-methods" role="tablist" aria-label="Order method">
               <button
                 type="button"
                 role="tab"
                 aria-selected={orderMode === 'type'}
-                className={`order-method-card ${orderMode === 'type' ? 'active' : ''}`}
+                className={`compact-method-btn ${orderMode === 'type' ? 'active' : ''}`}
                 onClick={() => {
                   setOrderMode('type');
                   if (submissionError) setSubmissionError(null);
                 }}
               >
-                <div className="method-icon-wrap" aria-hidden="true">
-                  {/* Keyboard Icon */}
-                  <svg width="34" height="34" viewBox="0 0 24 24" fill="#063A9B">
-                    <path d="M20 5H4c-1.1 0-1.99.9-1.99 2L2 17c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm-9 3h2v2h-2V8zm0 3h2v2h-2v-2zM8 8h2v2H8V8zm0 3h2v2H8v-2zm-1 2H5v-2h2v2zm0-3H5V8h2v2zm9 7H8v-2h8v2zm0-4h-2v-2h2v2zm0-3h-2V8h2v2zm3 3h-2v-2h2v2zm0-3h-2V8h2v2z" />
-                  </svg>
-                </div>
-                <span className="method-label">Type Order</span>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                  <path d="M20 5H4c-1.1 0-1.99.9-1.99 2L2 17c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm-9 3h2v2h-2V8zm0 3h2v2h-2v-2zM8 8h2v2H8V8zm0 3h2v2H8v-2zm-1 2H5v-2h2v2zm0-3H5V8h2v2zm9 7H8v-2h8v2zm0-4h-2v-2h2v2zm0-3h-2V8h2v2zm3 3h-2v-2h2v2zm0-3h-2V8h2v2z" />
+                </svg>
+                <span>Type</span>
               </button>
 
-              {/* Voice Order Option */}
               <button
                 type="button"
                 role="tab"
                 aria-selected={orderMode === 'voice'}
-                className={`order-method-card ${orderMode === 'voice' ? 'active' : ''}`}
+                className={`compact-method-btn ${orderMode === 'voice' ? 'active' : ''}`}
                 onClick={() => {
                   setOrderMode('voice');
                   if (submissionError) setSubmissionError(null);
                 }}
               >
-                <div className="method-icon-wrap" aria-hidden="true">
-                  {/* Microphone Icon */}
-                  <svg width="32" height="32" viewBox="0 0 24 24" fill="#063A9B">
-                    <path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3z" />
-                    <path d="M17 11c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z" />
-                  </svg>
-                </div>
-                <span className="method-label">Voice Order</span>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                  <path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3z" />
+                  <path d="M17 11c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z" />
+                </svg>
+                <span>Voice</span>
               </button>
             </div>
-
-            {/* Type Order Drawer */}
-            {orderMode === 'type' && (
-              <div className="type-input-drawer">
-                <textarea
-                  id={textInputId}
-                  rows={3}
-                  value={textRequest}
-                  onChange={(e) => {
-                    setTextRequest(e.target.value);
-                    if (submissionError) setSubmissionError(null);
-                  }}
-                  placeholder="Where do you want to go? Describe your request..."
-                  className="type-order-textarea"
-                />
-              </div>
-            )}
-
-            {/* Voice Order Drawer */}
-            {orderMode === 'voice' && (
-              <div className="voice-input-drawer">
-                <VoiceRecorder
-                  recorder={voiceRecorder}
-                  onSwitchToText={() => setOrderMode('type')}
-                />
-              </div>
-            )}
           </div>
 
-          {/* Offline Sync Banner if pending uploads exist */}
+          {/* 3. Guided Type Order */}
+          {orderMode === 'type' && (
+            <div className="type-input-drawer">
+              <div className="drawer-pro-guide">
+                <span className="drawer-pro-guide-icon" aria-hidden="true">
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
+                    <circle cx="12" cy="12" r="10" />
+                    <line x1="12" y1="16" x2="12" y2="12" />
+                    <line x1="12" y1="8" x2="12.01" y2="8" />
+                  </svg>
+                </span>
+                <span className="drawer-pro-guide-text">
+                  {serviceType === 'delivery'
+                    ? 'Enter exact pickup location, drop-off location, and item note.'
+                    : 'Enter your exact current location, destination, and a nearby landmark.'}
+                </span>
+              </div>
+
+              <div className="guided-route-card">
+                <div className="route-timeline" aria-hidden="true">
+                  <span className="route-dot route-dot-pickup" />
+                  <span className="route-line" />
+                  <span className="route-dot route-dot-dest" />
+                </div>
+
+                <div className="route-inputs-stack">
+                  <div className="route-field-group">
+                    <label htmlFor={pickupInputId} className="route-field-label">
+                      {serviceType === 'delivery' ? 'Exact Pickup Location' : 'Your Exact Location'}
+                    </label>
+                    <div className="route-input-wrap">
+                      <input
+                        id={pickupInputId}
+                        type="text"
+                        value={pickup}
+                        onFocus={() => setActiveRouteField('pickup')}
+                        onBlur={() => setPickupTouched(true)}
+                        onChange={(e) => {
+                          setPickup(e.target.value);
+                          if (submissionError) setSubmissionError(null);
+                        }}
+                        placeholder={
+                          serviceType === 'delivery'
+                            ? 'e.g. Behind the pharmacy, blue gate'
+                            : 'e.g. Near the pharmacy, opposite Shell'
+                        }
+                        className="route-native-input"
+                        maxLength={120}
+                      />
+                      {pickup && (
+                        <button
+                          type="button"
+                          className="route-clear-btn"
+                          onClick={() => setPickup('')}
+                          aria-label="Clear pickup"
+                        >
+                          &times;
+                        </button>
+                      )}
+                    </div>
+                    {pickupTouched && !guidedValidation.pickupValid && (
+                      <span className="route-field-hint">{guidedValidation.pickupHint}</span>
+                    )}
+                  </div>
+
+                  <div className="route-divider-row">
+                    <div className="route-divider-line" />
+                    {(pickup.trim() || destination.trim()) && (
+                      <button
+                        type="button"
+                        className="btn-swap-route"
+                        onClick={handleSwapRoute}
+                        title="Swap locations"
+                        aria-label="Swap locations"
+                      >
+                        ⇅
+                      </button>
+                    )}
+                  </div>
+
+                  <div className="route-field-group">
+                    <label htmlFor={destinationInputId} className="route-field-label">
+                      {serviceType === 'delivery' ? 'Drop-off' : 'Where are you going?'}
+                    </label>
+                    <div className="route-input-wrap">
+                      <input
+                        id={destinationInputId}
+                        type="text"
+                        value={destination}
+                        onFocus={() => setActiveRouteField('destination')}
+                        onBlur={() => setDestinationTouched(true)}
+                        onChange={(e) => {
+                          setDestination(e.target.value);
+                          if (submissionError) setSubmissionError(null);
+                        }}
+                        placeholder="e.g. Kadjebi Market"
+                        className="route-native-input"
+                        maxLength={120}
+                      />
+                      {destination && (
+                        <button
+                          type="button"
+                          className="route-clear-btn"
+                          onClick={() => setDestination('')}
+                          aria-label="Clear destination"
+                        >
+                          &times;
+                        </button>
+                      )}
+                    </div>
+                    {destinationTouched && !guidedValidation.destinationValid && (
+                      <span className="route-field-hint">{guidedValidation.destinationHint}</span>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {recentPlaces.length > 0 && (
+                <div className="quick-chips-row">
+                  {recentPlaces.slice(0, 3).map((place) => (
+                    <button
+                      key={place}
+                      type="button"
+                      className="quick-chip recent-place-chip"
+                      onClick={() => handleSelectRecentPlace(place)}
+                    >
+                      🕒 {place}
+                    </button>
+                  ))}
+                </div>
+              )}
+
+              <input
+                id={noteInputId}
+                type="text"
+                value={extraNote}
+                onChange={(e) => {
+                  setExtraNote(e.target.value);
+                  if (submissionError) setSubmissionError(null);
+                }}
+                placeholder={
+                  serviceType === 'delivery'
+                    ? 'Note (optional): item, receiver name...'
+                    : 'Note (optional): landmark, 2 people, luggage...'
+                }
+                className="guided-note-input"
+                maxLength={160}
+                aria-label="Optional note"
+              />
+
+              <div className="quick-chips-row" aria-label="Quick note options">
+                {QUICK_NOTE_CHIPS[serviceType].slice(0, 3).map((chip) => {
+                  const active = isChipActive(chip);
+                  return (
+                    <button
+                      key={chip}
+                      type="button"
+                      className={`quick-chip ${active ? 'active' : ''}`}
+                      onClick={() => handleToggleQuickNote(chip)}
+                      aria-pressed={active}
+                    >
+                      {active ? '✓ ' : '+ '}
+                      {chip}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* 3b. Guided Voice Order */}
+          {orderMode === 'voice' && (
+            <div className="voice-input-drawer">
+              <VoiceRecorder
+                recorder={voiceRecorder}
+                serviceType={serviceType}
+                onSwitchToText={() => setOrderMode('type')}
+              />
+            </div>
+          )}
+
+          {/* Offline Queue Banner */}
           {pendingOfflineItems.length > 0 && (
             <div className="offline-queue-banner" role="status">
               <div className="offline-queue-info">
                 <span>📡</span>
                 <span>
-                  <strong>{pendingOfflineItems.length} order{pendingOfflineItems.length > 1 ? 's' : ''}</strong> queued offline
+                  <strong>{pendingOfflineItems.length}</strong> queued offline
                 </span>
               </div>
               <button
@@ -470,7 +706,7 @@ export const CustomerBookingForm: React.FC<CustomerBookingFormProps> = ({
             </div>
           )}
 
-          {/* Professional Live Dispatch Progress Card */}
+          {/* Live Dispatch Progress Card */}
           {isSubmitting && (
             <div className="dispatch-progress-card" aria-live="polite">
               <div className="dispatch-progress-header">
@@ -484,13 +720,13 @@ export const CustomerBookingForm: React.FC<CustomerBookingFormProps> = ({
                 <div className="dispatch-text-group">
                   <span className="dispatch-title">
                     {uploadPercentage !== null && uploadPercentage < 100
-                      ? 'Preparing Voice Request'
-                      : 'Connecting with Local Riders'}
+                      ? 'Uploading Voice Note'
+                      : 'Sending to Nearby Riders'}
                   </span>
                   <span className="dispatch-sub">
                     {uploadPercentage !== null && uploadPercentage < 100
-                      ? 'Uploading audio instructions...'
-                      : 'Sending request to verified riders in Kadjebi...'}
+                      ? 'Almost done...'
+                      : 'Connecting with local riders...'}
                   </span>
                 </div>
                 {uploadPercentage !== null && (
@@ -507,18 +743,17 @@ export const CustomerBookingForm: React.FC<CustomerBookingFormProps> = ({
             </div>
           )}
 
-          {/* C. Order Ride Button */}
+          {/* 4. Submit Button */}
           <div className="submit-row">
             <button
               type="submit"
               disabled={!isFormValid || isSubmitting}
               className="btn-order-ride"
-              aria-label="Order Ride"
+              aria-label={serviceType === 'delivery' ? 'Order Delivery' : 'Order Ride'}
               aria-busy={isSubmitting}
             >
-              {/* Motorcycle with speed trails icon */}
               <span className="order-btn-motorcycle" aria-hidden="true">
-                <svg width="38" height="26" viewBox="0 0 48 32" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <svg width="36" height="24" viewBox="0 0 48 32" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                   <line x1="2" y1="9" x2="14" y2="9" strokeWidth="2.2" />
                   <line x1="0" y1="16" x2="16" y2="16" strokeWidth="2.5" />
                   <line x1="4" y1="23" x2="12" y2="23" strokeWidth="2.2" />
@@ -535,50 +770,34 @@ export const CustomerBookingForm: React.FC<CustomerBookingFormProps> = ({
                 {isSubmitting
                   ? uploadPercentage !== null
                     ? `Uploading (${uploadPercentage}%)...`
-                    : 'Submitting Order...'
+                    : 'Submitting...'
                   : submissionError
                   ? 'Retry Order'
+                  : serviceType === 'delivery'
+                  ? 'Order Delivery'
                   : 'Order Ride'}
               </span>
 
-              {/* Right Chevron Arrow */}
               <span className="order-btn-chevron" aria-hidden="true">
-                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3.2" strokeLinecap="round" strokeLinejoin="round">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3.2" strokeLinecap="round" strokeLinejoin="round">
                   <polyline points="9 18 15 12 9 6" />
                 </svg>
               </span>
             </button>
           </div>
 
-          {/* D. Trust Badge */}
+          {/* 5. Minimal Trust Footer */}
           <div className="trust-badge-container">
             <div className="trust-badge-row">
               <span className="trust-shield-icon" aria-hidden="true">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="#0B57D0">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="#0B57D0">
                   <path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm-2 16l-4-4 1.41-1.41L10 14.17l6.59-6.59L18 9l-8 8z" />
                 </svg>
               </span>
               <span className="trust-badge-text">Safe &bull; Fast &bull; Reliable</span>
             </div>
-            <p
-              style={{
-                margin: '6px 0 0',
-                fontSize: '0.78rem',
-                color: '#64748B',
-                textAlign: 'center'
-              }}
-            >
-              Fare is agreed directly with your rider.
-            </p>
-            {/* Curved Blue Swoosh Arc */}
-            <div className="trust-arc-wrap" aria-hidden="true">
-              <svg width="120" height="10" viewBox="0 0 120 10" fill="none">
-                <path d="M2 2C35 9 85 9 118 2" stroke="#0B57D0" strokeWidth="2.2" strokeLinecap="round" />
-              </svg>
-            </div>
           </div>
 
-          {/* E. Accra City Skyline with Independence Arch */}
           <div className="accra-skyline-footer" aria-hidden="true" />
         </form>
       </div>

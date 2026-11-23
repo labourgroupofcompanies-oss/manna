@@ -148,7 +148,7 @@ export const CustomerPage: React.FC = () => {
                     className="btn-track-back"
                     onClick={handleTrackAnother}
                   >
-                    &larr; Look Up Another Order
+                    &larr; Back
                   </button>
                 </div>
                 <OrderTracker

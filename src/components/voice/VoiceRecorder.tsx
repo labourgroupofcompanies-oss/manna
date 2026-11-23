@@ -1,16 +1,18 @@
 import React from 'react';
-import { formatDuration } from '../../utils';
+import { formatDuration, VOICE_GUIDE_CONFIG, type ServiceType } from '../../utils';
 import type { UseVoiceRecorderReturn } from '../../hooks/useVoiceRecorder';
 import './VoiceRecorder.css';
 
 interface VoiceRecorderProps {
   recorder: UseVoiceRecorderReturn;
   onSwitchToText?: () => void;
+  serviceType?: ServiceType;
 }
 
 export const VoiceRecorder: React.FC<VoiceRecorderProps> = ({
   recorder,
-  onSwitchToText
+  onSwitchToText,
+  serviceType = 'ride'
 }) => {
   const {
     isRecording,
@@ -23,8 +25,20 @@ export const VoiceRecorder: React.FC<VoiceRecorderProps> = ({
     deleteRecording
   } = recorder;
 
+  const isDelivery = serviceType === 'delivery';
+  const shortCues = isDelivery
+    ? ['Exact pickup spot', 'Drop-off spot', 'Item details']
+    : ['Your exact location', 'Destination', 'Landmark / note'];
+
+  const shortExample = isDelivery
+    ? '"Pick up a bag at Kadjebi Station and deliver to Hospital gate."'
+    : '"I am at Kadjebi Station near the junction, going to the Market."';
+
+  const isShortRecording = recordingDuration > 0 && recordingDuration < 2;
   const isInsecureContext =
     typeof window !== 'undefined' && !window.isSecureContext;
+
+  void VOICE_GUIDE_CONFIG[serviceType];
 
   return (
     <div className="voice-recorder-container">
@@ -34,13 +48,11 @@ export const VoiceRecorder: React.FC<VoiceRecorderProps> = ({
           <span className="voice-alert-icon">⚠️</span>
           <div>
             <strong>
-              {isInsecureContext
-                ? 'HTTPS required for voice recording'
-                : 'Browser not supported'}
+              {isInsecureContext ? 'HTTPS required' : 'Not supported'}
             </strong>
             <p>
               {isInsecureContext
-                ? 'Microphone access requires a secure (HTTPS) connection. Open this app over HTTPS to record a voice order.'
+                ? 'Open over HTTPS to record audio.'
                 : 'Voice recording is not supported in this browser.'}
             </p>
             {onSwitchToText && (
@@ -49,7 +61,7 @@ export const VoiceRecorder: React.FC<VoiceRecorderProps> = ({
                 className="btn-switch-text"
                 onClick={onSwitchToText}
               >
-                Switch to Type Order
+                Use Type Order
               </button>
             )}
           </div>
@@ -69,16 +81,29 @@ export const VoiceRecorder: React.FC<VoiceRecorderProps> = ({
                 className="btn-switch-text"
                 onClick={onSwitchToText}
               >
-                Switch to Type Order
+                Use Type Order
               </button>
             )}
           </div>
         </div>
       )}
 
-      {/* State 1: Ready to record (no recording in progress, no recording saved yet) */}
+      {/* State 1: Ready to record — Sleek Professional Speaking Guide + Mic */}
       {!isRecording && !audioUrl && (
         <div className="voice-prompt-box">
+          <div className="voice-pro-guide" aria-label="Speaking guide">
+            <div className="voice-pro-guide-label">SPEAKING GUIDE</div>
+            <div className="voice-pro-steps">
+              {shortCues.map((cue, idx) => (
+                <div key={cue} className="voice-pro-step">
+                  <span className="voice-pro-num">{idx + 1}</span>
+                  <span className="voice-pro-text">{cue}</span>
+                </div>
+              ))}
+            </div>
+            <p className="voice-short-example">Example: {shortExample}</p>
+          </div>
+
           <button
             type="button"
             className="mic-record-btn"
@@ -88,8 +113,8 @@ export const VoiceRecorder: React.FC<VoiceRecorderProps> = ({
           >
             <div className="mic-icon-wrapper">
               <svg
-                width="34"
-                height="34"
+                width="30"
+                height="30"
                 viewBox="0 0 24 24"
                 fill="none"
                 stroke="currentColor"
@@ -103,24 +128,19 @@ export const VoiceRecorder: React.FC<VoiceRecorderProps> = ({
                 <line x1="8" y1="23" x2="16" y2="23" />
               </svg>
             </div>
-            <span className="mic-label">Tap to Record Voice Note</span>
+            <span className="mic-label">Tap to Record</span>
           </button>
-          <p className="voice-hint">
-            Speak your pickup spot and destination clearly.
-            <span className="voice-example-quote">&ldquo;I am at Kadjebi station, heading to the border.&rdquo;</span>
-          </p>
         </div>
       )}
 
-      {/* State 2: Actively Recording */}
+      {/* State 2: Actively Recording — Speaking cues stay neatly visible */}
       {isRecording && (
         <div className="voice-active-box" aria-live="polite">
           <div className="recording-status-row">
             <span className="recording-dot-pulse" />
-            <span className="recording-label-text">RECORDING AUDIO</span>
+            <span className="recording-label-text">RECORDING</span>
           </div>
 
-          {/* Sound Wave Equalizer Bars */}
           <div className="voice-waveform-animation" aria-hidden="true">
             <span className="wave-bar wave-bar-1" />
             <span className="wave-bar wave-bar-2" />
@@ -131,18 +151,28 @@ export const VoiceRecorder: React.FC<VoiceRecorderProps> = ({
             <span className="wave-bar wave-bar-7" />
           </div>
 
-          <div className="recording-timer" aria-label={`Recording duration ${formatDuration(recordingDuration)}`}>
+          <div
+            className="recording-timer"
+            aria-label={`Recording duration ${formatDuration(recordingDuration)}`}
+          >
             {formatDuration(recordingDuration)}
           </div>
 
-          <p className="recording-live-text">Listening... speak clearly into your phone</p>
+          <div className="voice-pro-steps voice-pro-steps-recording" aria-label="Say these points">
+            {shortCues.map((cue, idx) => (
+              <div key={cue} className="voice-pro-step recording">
+                <span className="voice-pro-num recording">{idx + 1}</span>
+                <span className="voice-pro-text">{cue}</span>
+              </div>
+            ))}
+          </div>
 
           <div className="recording-actions-row">
             <button
               type="button"
               className="btn-cancel-recording"
               onClick={deleteRecording}
-              aria-label="Cancel and discard recording"
+              aria-label="Cancel recording"
             >
               Cancel
             </button>
@@ -150,22 +180,22 @@ export const VoiceRecorder: React.FC<VoiceRecorderProps> = ({
               type="button"
               className="btn btn-stop-recording"
               onClick={stopRecording}
-              aria-label="Done recording"
+              aria-label="Finish recording"
             >
               <span className="stop-square-icon" />
-              <span>Finish Recording</span>
+              <span>Done</span>
             </button>
           </div>
         </div>
       )}
 
-      {/* State 3: Recording Complete / Audio Playback */}
+      {/* State 3: Recording Complete / Playback */}
       {audioUrl && !isRecording && (
         <div className="voice-playback-box">
           <div className="playback-header">
             <div className="playback-badge">
               <span className="playback-check-icon">✓</span>
-              <span>Voice Note Recorded</span>
+              <span>Voice Note Ready</span>
             </div>
             <span className="playback-duration">
               {formatDuration(recordingDuration)}
@@ -183,13 +213,18 @@ export const VoiceRecorder: React.FC<VoiceRecorderProps> = ({
             </audio>
           </div>
 
-          {/* Clean, reassuring status pill — NO developer/debug metrics */}
-          <div className="voice-ready-info">
-            <span className="voice-ready-pill">
-              <span className="voice-ready-dot" />
-              Audio ready &bull; Your rider will hear these instructions
-            </span>
-          </div>
+          {isShortRecording ? (
+            <div className="voice-short-warning" role="status">
+              <span>⚠️ Short recording ({recordingDuration}s) — play back to check it is clear.</span>
+            </div>
+          ) : (
+            <div className="voice-ready-info">
+              <span className="voice-ready-pill">
+                <span className="voice-ready-dot" />
+                Play back to confirm your pickup &amp; destination
+              </span>
+            </div>
+          )}
 
           <div className="playback-actions">
             <button
@@ -198,23 +233,7 @@ export const VoiceRecorder: React.FC<VoiceRecorderProps> = ({
               onClick={deleteRecording}
               aria-label="Delete voice note"
             >
-              <svg
-                width="15"
-                height="15"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              >
-                <polyline points="3 6 5 6 21 6" />
-                <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
-                <path d="M10 11v6" />
-                <path d="M14 11v6" />
-                <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" />
-              </svg>
-              <span>Delete Voice Note</span>
+              <span>Delete</span>
             </button>
 
             <button
@@ -226,19 +245,6 @@ export const VoiceRecorder: React.FC<VoiceRecorderProps> = ({
               }}
               aria-label="Re-record audio note"
             >
-              <svg
-                width="15"
-                height="15"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              >
-                <polyline points="1 4 1 10 7 10" />
-                <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10" />
-              </svg>
               <span>Re-record</span>
             </button>
           </div>

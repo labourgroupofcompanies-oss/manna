@@ -60,7 +60,7 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ children, adminUser, t
     setIsLoggingOut(true);
     try {
       await adminService.logoutAdmin();
-      navigate('/admin/login', { replace: true });
+      navigate('/portal/login', { replace: true });
     } catch {
       setIsLoggingOut(false);
     }
@@ -68,30 +68,30 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ children, adminUser, t
 
   // 8 required navigation sections with Font Awesome icons
   const navItems = [
-    { path: '/admin/dashboard', alias: '/admin', label: 'Dashboard', icon: 'fa-solid fa-gauge-high' },
-    { path: '/admin/trips', alias: '/admin/orders', label: 'Trips & Analytics', icon: 'fa-solid fa-route' },
-    { path: '/admin/riders', label: 'Riders', icon: 'fa-solid fa-motorcycle' },
-    { path: '/admin/verification', label: 'Rider Verification', icon: 'fa-solid fa-shield-halved' },
-    { path: '/admin/customers', label: 'Customers', icon: 'fa-solid fa-users' },
-    { path: '/admin/disputes', label: 'Disputes & Complaints', icon: 'fa-solid fa-scale-balanced' },
-    { path: '/admin/metrics', label: 'System Metrics', icon: 'fa-solid fa-chart-line' },
-    { path: '/admin/settings', label: 'Settings', icon: 'fa-solid fa-gear' }
+    { path: '/portal/dashboard', alias: '/portal', label: 'Dashboard', icon: 'fa-solid fa-gauge-high' },
+    { path: '/portal/trips', alias: '/portal/orders', label: 'Trips & Analytics', icon: 'fa-solid fa-route' },
+    { path: '/portal/riders', label: 'Riders', icon: 'fa-solid fa-motorcycle' },
+    { path: '/portal/verification', label: 'Rider Verification', icon: 'fa-solid fa-shield-halved' },
+    { path: '/portal/customers', label: 'Customers', icon: 'fa-solid fa-users' },
+    { path: '/portal/disputes', label: 'Disputes & Complaints', icon: 'fa-solid fa-scale-balanced' },
+    { path: '/portal/metrics', label: 'System Metrics', icon: 'fa-solid fa-chart-line' },
+    { path: '/portal/settings', label: 'Settings', icon: 'fa-solid fa-gear' }
   ];
 
   // Mobile Bottom Bar Primary 4 items + "More"
   const mobilePrimaryTabs = [
-    { path: '/admin/dashboard', alias: '/admin', label: 'Dashboard', icon: 'fa-solid fa-gauge-high' },
-    { path: '/admin/trips', alias: '/admin/orders', label: 'Trips', icon: 'fa-solid fa-route' },
-    { path: '/admin/riders', label: 'Riders', icon: 'fa-solid fa-motorcycle' },
-    { path: '/admin/verification', label: 'Verify', icon: 'fa-solid fa-shield-halved' }
+    { path: '/portal/dashboard', alias: '/portal', label: 'Dashboard', icon: 'fa-solid fa-gauge-high' },
+    { path: '/portal/trips', alias: '/portal/orders', label: 'Trips', icon: 'fa-solid fa-route' },
+    { path: '/portal/riders', label: 'Riders', icon: 'fa-solid fa-motorcycle' },
+    { path: '/portal/verification', label: 'Verify', icon: 'fa-solid fa-shield-halved' }
   ];
 
   // The remaining 4 secondary tabs shown in the "More" drawer
   const mobileSecondaryTabs = [
-    { path: '/admin/customers', label: 'Customers', icon: 'fa-solid fa-users', desc: 'Registered passenger phone directory' },
-    { path: '/admin/disputes', label: 'Disputes & Complaints', icon: 'fa-solid fa-scale-balanced', desc: 'Triage rider & customer issues' },
-    { path: '/admin/metrics', label: 'System Metrics', icon: 'fa-solid fa-chart-line', desc: 'Real infrastructure health & audit log' },
-    { path: '/admin/settings', label: 'Settings', icon: 'fa-solid fa-gear', desc: 'Access control & security audit' }
+    { path: '/portal/customers', label: 'Customers', icon: 'fa-solid fa-users', desc: 'Registered passenger phone directory' },
+    { path: '/portal/disputes', label: 'Disputes & Complaints', icon: 'fa-solid fa-scale-balanced', desc: 'Triage rider & customer issues' },
+    { path: '/portal/metrics', label: 'System Metrics', icon: 'fa-solid fa-chart-line', desc: 'Real infrastructure health & audit log' },
+    { path: '/portal/settings', label: 'Settings', icon: 'fa-solid fa-gear', desc: 'Access control & security audit' }
   ];
 
   const isNavActive = (itemPath: string, alias?: string) => {

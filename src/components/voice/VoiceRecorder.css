@@ -64,7 +64,8 @@
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 24px 16px;
+  gap: 12px;
+  padding: 16px 14px;
   background: linear-gradient(180deg, #F8FAFD 0%, #EEF4FD 100%);
   border: 1.5px dashed #BFDBFE;
   border-radius: 16px;
@@ -74,6 +75,82 @@
 
 .voice-prompt-box:hover {
   border-color: #3B82F6;
+}
+
+/* Sleek Professional Speaking Guide Card */
+.voice-pro-guide {
+  width: 100%;
+  background: #FFFFFF;
+  border: 1px solid #DBEAFE;
+  border-left: 3px solid #063A9B;
+  border-radius: 0 12px 12px 0;
+  padding: 10px 12px;
+  text-align: left;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  box-shadow: 0 2px 8px rgba(6, 58, 155, 0.04);
+}
+
+.voice-pro-guide-label {
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.07em;
+  color: #063A9B;
+}
+
+.voice-pro-steps {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 14px;
+}
+
+.voice-pro-steps-recording {
+  justify-content: center;
+  margin-bottom: 14px;
+  background: #FFFFFF;
+  padding: 8px 12px;
+  border-radius: 10px;
+  border: 1px solid #FECACA;
+}
+
+.voice-pro-step {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.voice-pro-num {
+  width: 19px;
+  height: 19px;
+  border-radius: 50%;
+  background: #EAF1FF;
+  color: #063A9B;
+  font-size: 0.7rem;
+  font-weight: 800;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.voice-pro-num.recording {
+  background: #FEE2E2;
+  color: #B91C1C;
+}
+
+.voice-pro-text {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #1E293B;
+}
+
+.voice-short-example {
+  margin: 0;
+  font-size: 0.75rem;
+  color: #64748B;
+  font-style: italic;
+  line-height: 1.35;
 }
 
 .mic-record-btn {
@@ -229,9 +306,66 @@
 }
 
 .recording-live-text {
-  font-size: 0.78rem;
+  font-size: 0.8rem;
+  font-weight: 600;
   color: #7F1D1D;
-  margin: 0 0 16px;
+  margin: 0 0 12px;
+  line-height: 1.35;
+}
+
+/* Live Speaking Cue Checklist */
+.live-cue-list {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  margin-bottom: 16px;
+}
+
+.live-cue-item {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  background: #FFFFFF;
+  border: 1px solid #FECACA;
+  border-radius: 10px;
+  color: #1E293B;
+  font-size: 0.82rem;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.live-cue-item.checked {
+  background: #F0FDF4;
+  border-color: #86EFAC;
+  color: #166534;
+}
+
+.live-cue-check {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: #FEE2E2;
+  color: #B91C1C;
+  font-size: 0.72rem;
+  font-weight: 800;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.live-cue-item.checked .live-cue-check {
+  background: #16A34A;
+  color: #FFFFFF;
+}
+
+.live-cue-text {
+  line-height: 1.25;
 }
 
 .btn-stop-recording {
@@ -327,12 +461,26 @@
 .voice-ready-info {
   display: flex;
   align-items: center;
-  padding: 6px 10px;
+  padding: 8px 10px;
   background: #F0FDF4;
-  border-radius: 8px;
+  border-radius: 10px;
   font-size: 0.76rem;
   color: #166534;
   font-weight: 500;
+  line-height: 1.35;
+}
+
+.voice-short-warning {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 8px 10px;
+  background: #FFFBEB;
+  border: 1px solid #FCD34D;
+  border-radius: 10px;
+  font-size: 0.76rem;
+  color: #92400E;
+  line-height: 1.4;
 }
 
 .voice-ready-pill {

@@ -67,6 +67,10 @@ export interface RiderWithStats {
   motorcycleModel: string;
   motorcycleColour: string;
   operatingArea: string;
+  averageRating?: number | null;
+  totalRatings?: number;
+  walletBalance?: number;
+  freeRidesRemaining?: number;
   profilePhotoPath?: string | null;
   profilePhotoUrl?: string | null;
   isAvailable: boolean;

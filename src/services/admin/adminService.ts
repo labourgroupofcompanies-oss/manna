@@ -753,6 +753,10 @@ export const adminService = {
               motorcycleModel: r.motorcycle_model as string,
               motorcycleColour: r.motorcycle_colour as string,
               operatingArea: r.operating_area as string,
+              averageRating: r.average_rating != null ? Number(r.average_rating) : null,
+              totalRatings: Number(r.total_ratings) || 0,
+              walletBalance: Number(r.wallet_balance) || 0,
+              freeRidesRemaining: r.free_rides_remaining != null ? Number(r.free_rides_remaining) : 2,
               profilePhotoPath: (r.profile_photo_path as string) || null,
               profilePhotoUrl: photoUrl,
               isAvailable: Boolean(r.is_available),
@@ -811,6 +815,10 @@ export const adminService = {
           motorcycleModel: r.motorcycle_model,
           motorcycleColour: r.motorcycle_colour,
           operatingArea: r.operating_area,
+          averageRating: (r as Record<string, unknown>).average_rating != null ? Number((r as Record<string, unknown>).average_rating) : null,
+          totalRatings: Number((r as Record<string, unknown>).total_ratings) || 0,
+          walletBalance: Number((r as Record<string, unknown>).wallet_balance) || 0,
+          freeRidesRemaining: (r as Record<string, unknown>).free_rides_remaining != null ? Number((r as Record<string, unknown>).free_rides_remaining) : 2,
           profilePhotoPath: r.profile_photo_path,
           profilePhotoUrl: photoUrl,
           isAvailable: r.is_available,
@@ -1522,6 +1530,226 @@ export const adminService = {
       return data.signedUrl;
     } catch {
       return null;
+    }
+  },
+
+  /**
+   * Fetch pending rider refund requests for Admin 1-click review
+   */
+  async getPendingRefundRequests(): Promise<
+    Array<{
+      id: string;
+      orderId: string;
+      orderReference: string;
+      riderId: string;
+      riderName: string;
+      riderPhone: string;
+      reason: string;
+      chargeType: 'wallet' | 'free_ride';
+      amount: number;
+      status: 'pending' | 'approved' | 'rejected';
+      createdAt: string;
+    }>
+  > {
+    if (!isSupabaseConfigured || !supabase) return [];
+    try {
+      const { data, error } = await supabase
+        .from('refund_requests')
+        .select('*, riders(full_name, phone_number)')
+        .eq('status', 'pending')
+        .order('created_at', { ascending: false });
+
+      if (error || !data) return [];
+
+      return data.map((row: Record<string, unknown>) => {
+        const riderObj = row.riders as { full_name?: string; phone_number?: string } | null;
+        return {
+          id: row.id as string,
+          orderId: row.order_id as string,
+          orderReference: row.order_reference as string,
+          riderId: row.rider_id as string,
+          riderName: riderObj?.full_name || 'Rider',
+          riderPhone: riderObj?.phone_number || '',
+          reason: row.reason as string,
+          chargeType: (row.charge_type as 'wallet' | 'free_ride') || 'wallet',
+          amount: Number(row.amount) || 0,
+          status: (row.status as 'pending' | 'approved' | 'rejected') || 'pending',
+          createdAt: row.created_at as string
+        };
+      });
+    } catch {
+      return [];
+    }
+  },
+
+  /**
+   * Approve or reject a rider refund request (1-click credit back to wallet)
+   */
+  async reviewRefundRequest(
+    refundId: string,
+    decision: 'approved' | 'rejected',
+    notes?: string
+  ): Promise<{ success: boolean; error?: string }> {
+    if (!isSupabaseConfigured || !supabase) {
+      return { success: false, error: 'Backend is not configured.' };
+    }
+    try {
+      const { data, error } = await supabase.rpc('admin_review_refund_request', {
+        p_refund_id: refundId,
+        p_decision: decision,
+        p_notes: notes || null
+      });
+
+      if (error) return { success: false, error: error.message };
+      if (!data?.success) return { success: false, error: data?.error || 'Review failed.' };
+      return { success: true };
+    } catch (err: unknown) {
+      return { success: false, error: (err as Error).message };
+    }
+  },
+
+  /**
+   * Fetch total GH₵ 3.00 commission revenue earned from riders
+   */
+  async getCommissionRevenueTotal(): Promise<number> {
+    if (!isSupabaseConfigured || !supabase) return 0;
+    try {
+      const { data, error } = await supabase
+        .from('wallet_transactions')
+        .select('amount, type')
+        .in('type', ['order_commission', 'refund']);
+
+      if (error || !data) return 0;
+      let net = 0;
+      for (const tx of data as Array<{ amount: number; type: string }>) {
+        if (tx.type === 'order_commission') net += Math.abs(Number(tx.amount) || 0);
+        if (tx.type === 'refund') net -= Math.abs(Number(tx.amount) || 0);
+      }
+      return Math.max(0, Math.round(net * 100) / 100);
+    } catch {
+      return 0;
+    }
+  },
+
+  /**
+   * Fetch pending manual MoMo top-up requests for 1-click Admin confirmation
+   */
+  async getPendingManualTopups(): Promise<
+    Array<{
+      id: string;
+      riderId: string;
+      riderName: string;
+      riderPhone: string;
+      amount: number;
+      momoNetwork: string;
+      senderPhone: string;
+      transactionId: string;
+      status: 'pending' | 'approved' | 'rejected';
+      createdAt: string;
+    }>
+  > {
+    if (!isSupabaseConfigured || !supabase) return [];
+    try {
+      const { data, error } = await supabase
+        .from('manual_topup_requests')
+        .select('*, riders(full_name, phone_number)')
+        .eq('status', 'pending')
+        .order('created_at', { ascending: false });
+
+      if (error || !data) return [];
+
+      return data.map((row: Record<string, unknown>) => {
+        const riderObj = row.riders as { full_name?: string; phone_number?: string } | null;
+        return {
+          id: row.id as string,
+          riderId: row.rider_id as string,
+          riderName: riderObj?.full_name || 'Rider',
+          riderPhone: riderObj?.phone_number || '',
+          amount: Number(row.amount) || 0,
+          momoNetwork: (row.momo_network as string) || 'MTN MoMo',
+          senderPhone: (row.sender_phone as string) || '',
+          transactionId: (row.transaction_id as string) || '',
+          status: (row.status as 'pending' | 'approved' | 'rejected') || 'pending',
+          createdAt: row.created_at as string
+        };
+      });
+    } catch {
+      return [];
+    }
+  },
+
+  /**
+   * Approve or reject a manual MoMo top-up (1-click wallet credit)
+   */
+  async reviewManualTopup(
+    requestId: string,
+    decision: 'approved' | 'rejected',
+    notes?: string
+  ): Promise<{ success: boolean; error?: string }> {
+    if (!isSupabaseConfigured || !supabase) {
+      return { success: false, error: 'Backend is not configured.' };
+    }
+    try {
+      const { data, error } = await supabase.rpc('admin_review_manual_topup', {
+        p_request_id: requestId,
+        p_decision: decision,
+        p_notes: notes || null
+      });
+
+      if (error) return { success: false, error: error.message };
+      if (!data?.success) return { success: false, error: data?.error || 'Review failed.' };
+      return { success: true };
+    } catch (err: unknown) {
+      return { success: false, error: (err as Error).message };
+    }
+  },
+
+  /**
+   * Get & update Manna MoMo payment receiver settings
+   */
+  async getPaymentSettings(): Promise<{
+    momoNumber: string;
+    momoName: string;
+    momoNetwork: string;
+  }> {
+    const fallback = { momoNumber: '0245660622', momoName: 'Labour App Enterprise', momoNetwork: 'MTN MoMo' };
+    if (!isSupabaseConfigured || !supabase) return fallback;
+    try {
+      const { data, error } = await supabase
+        .from('platform_payment_settings')
+        .select('momo_number, momo_name, momo_network')
+        .eq('id', 1)
+        .maybeSingle();
+      if (error || !data) return fallback;
+      return {
+        momoNumber: data.momo_number || fallback.momoNumber,
+        momoName: data.momo_name || fallback.momoName,
+        momoNetwork: data.momo_network || fallback.momoNetwork
+      };
+    } catch {
+      return fallback;
+    }
+  },
+
+  async updatePaymentSettings(params: {
+    momoNumber: string;
+    momoName: string;
+    momoNetwork: string;
+  }): Promise<{ success: boolean; error?: string }> {
+    if (!isSupabaseConfigured || !supabase) {
+      return { success: false, error: 'Backend is not configured.' };
+    }
+    try {
+      const { data, error } = await supabase.rpc('admin_update_payment_settings', {
+        p_momo_number: params.momoNumber,
+        p_momo_name: params.momoName,
+        p_momo_network: params.momoNetwork
+      });
+      if (error) return { success: false, error: error.message };
+      if (!data?.success) return { success: false, error: data?.error || 'Update failed.' };
+      return { success: true };
+    } catch (err: unknown) {
+      return { success: false, error: (err as Error).message };
     }
   }
 };

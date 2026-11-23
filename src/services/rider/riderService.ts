@@ -1,5 +1,10 @@
 import { supabase, isSupabaseConfigured } from '../supabase';
-import { validateGhanaPhone } from '../../utils';
+import {
+  validateGhanaPhone,
+  matchStation,
+  isOrderVisibleToRiderAtWave,
+  MAX_STATION_CHANGES_PER_WEEK
+} from '../../utils';
 import { mediaUploadManager } from '../storage/mediaUploadManager';
 import type {
   RiderProfile,
@@ -8,7 +13,8 @@ import type {
   RiderLoginPayload,
   AvailableOrderSummary,
   ActiveRiderOrder,
-  RiderMetrics
+  RiderMetrics,
+  WalletTransaction
 } from '../../types';
 
 /**
@@ -213,6 +219,18 @@ export const riderService = {
         motorcycleModel: riderRecord.motorcycle_model,
         motorcycleColour: riderRecord.motorcycle_colour,
         operatingArea: riderRecord.operating_area,
+        averageRating:
+          (riderRecord as Record<string, unknown>).average_rating != null
+            ? Number((riderRecord as Record<string, unknown>).average_rating)
+            : null,
+        totalRatings: Number((riderRecord as Record<string, unknown>).total_ratings) || 0,
+        walletBalance: Number((riderRecord as Record<string, unknown>).wallet_balance) || 0,
+        freeRidesRemaining:
+          (riderRecord as Record<string, unknown>).free_rides_remaining != null
+            ? Number((riderRecord as Record<string, unknown>).free_rides_remaining)
+            : 2,
+        stationChangeCount: (riderRecord as Record<string, unknown>).station_change_count as number | undefined ?? 0,
+        stationChangeWeekStart: (riderRecord as Record<string, unknown>).station_change_week_start as string | null ?? null,
         profilePhotoPath: riderRecord.profile_photo_path,
         profilePhotoUrl,
         isAvailable: riderRecord.is_available,
@@ -297,6 +315,18 @@ export const riderService = {
         motorcycleModel: riderRecord.motorcycle_model,
         motorcycleColour: riderRecord.motorcycle_colour,
         operatingArea: riderRecord.operating_area,
+        averageRating:
+          (riderRecord as Record<string, unknown>).average_rating != null
+            ? Number((riderRecord as Record<string, unknown>).average_rating)
+            : null,
+        totalRatings: Number((riderRecord as Record<string, unknown>).total_ratings) || 0,
+        walletBalance: Number((riderRecord as Record<string, unknown>).wallet_balance) || 0,
+        freeRidesRemaining:
+          (riderRecord as Record<string, unknown>).free_rides_remaining != null
+            ? Number((riderRecord as Record<string, unknown>).free_rides_remaining)
+            : 2,
+        stationChangeCount: (riderRecord as Record<string, unknown>).station_change_count as number | undefined ?? 0,
+        stationChangeWeekStart: (riderRecord as Record<string, unknown>).station_change_week_start as string | null ?? null,
         profilePhotoPath: riderRecord.profile_photo_path,
         profilePhotoUrl,
         isAvailable: riderRecord.is_available,
@@ -359,6 +389,18 @@ export const riderService = {
         motorcycleModel: riderRecord.motorcycle_model,
         motorcycleColour: riderRecord.motorcycle_colour,
         operatingArea: riderRecord.operating_area,
+        averageRating:
+          (riderRecord as Record<string, unknown>).average_rating != null
+            ? Number((riderRecord as Record<string, unknown>).average_rating)
+            : null,
+        totalRatings: Number((riderRecord as Record<string, unknown>).total_ratings) || 0,
+        walletBalance: Number((riderRecord as Record<string, unknown>).wallet_balance) || 0,
+        freeRidesRemaining:
+          (riderRecord as Record<string, unknown>).free_rides_remaining != null
+            ? Number((riderRecord as Record<string, unknown>).free_rides_remaining)
+            : 2,
+        stationChangeCount: (riderRecord as Record<string, unknown>).station_change_count as number | undefined ?? 0,
+        stationChangeWeekStart: (riderRecord as Record<string, unknown>).station_change_week_start as string | null ?? null,
         profilePhotoPath: riderRecord.profile_photo_path,
         profilePhotoUrl,
         isAvailable: riderRecord.is_available,
@@ -423,13 +465,115 @@ export const riderService = {
   },
 
   /**
+   * Change rider's current moto station (max 2 changes per 7-day rolling week)
+   */
+  async changeStation(newStationName: string): Promise<{
+    success: boolean;
+    operatingArea?: string;
+    changesRemaining?: number;
+    error?: string;
+  }> {
+    if (!isSupabaseConfigured || !supabase) {
+      return { success: false, error: 'Supabase is not configured.' };
+    }
+
+    const matched = matchStation(newStationName);
+    if (!matched) {
+      return { success: false, error: 'Please select a valid Kadjebi moto station.' };
+    }
+
+    try {
+      // 1. Prefer server-enforced RPC (strictly enforces 2/week limit in Postgres)
+      const { data: rpcRes, error: rpcErr } = await supabase.rpc('change_rider_station', {
+        p_new_station: matched.name
+      });
+
+      if (!rpcErr && rpcRes && typeof rpcRes === 'object') {
+        const resObj = rpcRes as {
+          success?: boolean;
+          operating_area?: string;
+          changes_remaining?: number;
+          error?: string;
+        };
+        if (resObj.success) {
+          return {
+            success: true,
+            operatingArea: resObj.operating_area || matched.name,
+            changesRemaining: resObj.changes_remaining
+          };
+        }
+        return {
+          success: false,
+          changesRemaining: resObj.changes_remaining,
+          error: resObj.error || 'Could not change station.'
+        };
+      }
+
+      // 2. Client-guarded fallback if SQL migration hasn't been run yet
+      const { data: userData } = await supabase.auth.getUser();
+      if (!userData?.user) {
+        return { success: false, error: 'Authentication session expired.' };
+      }
+
+      const storageKey = `manna_rider_station_changes_${userData.user.id}`;
+      let count = 0;
+      let weekStartMs = Date.now();
+      if (typeof window !== 'undefined' && window.localStorage) {
+        try {
+          const saved = JSON.parse(window.localStorage.getItem(storageKey) || 'null');
+          if (saved && typeof saved.weekStartMs === 'number' && Date.now() - saved.weekStartMs < 7 * 86400 * 1000) {
+            count = Number(saved.count) || 0;
+            weekStartMs = saved.weekStartMs;
+          }
+        } catch {
+          // ignore
+        }
+      }
+
+      if (count >= MAX_STATION_CHANGES_PER_WEEK) {
+        return {
+          success: false,
+          changesRemaining: 0,
+          error: `You have used your ${MAX_STATION_CHANGES_PER_WEEK} station changes for this week.`
+        };
+      }
+
+      const { error: updateErr } = await supabase
+        .from('riders')
+        .update({ operating_area: matched.name })
+        .eq('user_id', userData.user.id);
+
+      if (updateErr) {
+        return { success: false, error: updateErr.message };
+      }
+
+      const nextCount = count + 1;
+      if (typeof window !== 'undefined' && window.localStorage) {
+        try {
+          window.localStorage.setItem(storageKey, JSON.stringify({ count: nextCount, weekStartMs }));
+        } catch {
+          // ignore
+        }
+      }
+
+      return {
+        success: true,
+        operatingArea: matched.name,
+        changesRemaining: Math.max(0, MAX_STATION_CHANGES_PER_WEEK - nextCount)
+      };
+    } catch (err: unknown) {
+      return { success: false, error: (err as Error).message || 'Failed to update station.' };
+    }
+  },
+
+  /**
    * Fetch available customer orders for online riders (Privacy-Safe)
    */
   async getAvailableOrders(): Promise<AvailableOrderSummary[]> {
     if (!isSupabaseConfigured || !supabase) return [];
 
     try {
-      // 1. Try secure RPC function (omits phone numbers, verifies rider is online)
+      // 1. Try secure RPC function (omits phone numbers, verifies rider is online, applies wave filter)
       const { data: rpcData, error: rpcError } = await supabase.rpc('get_available_orders');
 
       if (!rpcError && Array.isArray(rpcData)) {
@@ -440,11 +584,15 @@ export const riderService = {
           orderDescription: (o.order_description as string) || null,
           voiceRecordingPath: (o.voice_recording_path as string) || null,
           customerComment: (o.customer_comment as string) || null,
+          pickupStation:
+            (o.pickup_station as string | null) ||
+            matchStation((o.order_description as string) || '')?.name ||
+            null,
           createdAt: o.created_at as string
         }));
       }
 
-      // 2. Direct fallback query (protects customer phone by selecting only needed fields)
+      // 2. Direct fallback query (protects customer phone and applies station wave filter client-side)
       const currentRider = await this.getCurrentRider();
       if (!currentRider || !currentRider.isAvailable || ['suspended', 'rejected'].includes(currentRider.verificationStatus)) {
         return [];
@@ -460,15 +608,27 @@ export const riderService = {
 
       if (error || !data) return [];
 
-      return data.map((o) => ({
-        id: o.id,
-        orderReference: o.order_reference,
-        orderType: o.order_type as 'text' | 'voice',
-        orderDescription: o.order_description,
-        voiceRecordingPath: o.voice_recording_path,
-        customerComment: (o as Record<string, unknown>).customer_comment as string | null ?? null,
-        createdAt: o.created_at
-      }));
+      return data
+        .map((o) => {
+          const rec = o as Record<string, unknown>;
+          const pickupStation =
+            (rec.pickup_station as string | null) ||
+            matchStation(o.order_description || '')?.name ||
+            null;
+          return {
+            id: o.id,
+            orderReference: o.order_reference,
+            orderType: o.order_type as 'text' | 'voice',
+            orderDescription: o.order_description,
+            voiceRecordingPath: o.voice_recording_path,
+            customerComment: (rec.customer_comment as string | null) ?? null,
+            pickupStation,
+            createdAt: o.created_at
+          };
+        })
+        .filter((o) =>
+          isOrderVisibleToRiderAtWave(o.pickupStation, currentRider.operatingArea, o.createdAt)
+        );
     } catch {
       return [];
     }
@@ -514,7 +674,15 @@ export const riderService = {
   /**
    * Concurrency-safe Order Acceptance (Atomic database row-lock update)
    */
-  async acceptOrder(orderId: string): Promise<{ success: boolean; order?: ActiveRiderOrder; error?: string }> {
+  async acceptOrder(orderId: string): Promise<{
+    success: boolean;
+    order?: ActiveRiderOrder;
+    insufficientBalance?: boolean;
+    walletBalance?: number;
+    freeRidesRemaining?: number;
+    chargedAmount?: number;
+    error?: string;
+  }> {
     if (!isSupabaseConfigured || !supabase) {
       return { success: false, error: 'Backend is not configured.' };
     }
@@ -532,12 +700,17 @@ export const riderService = {
       if (!data || !data.success) {
         return {
           success: false,
+          insufficientBalance: data?.code === 'INSUFFICIENT_BALANCE',
+          walletBalance: data?.wallet_balance != null ? Number(data.wallet_balance) : undefined,
           error: data?.error || 'Order could not be accepted. It may have already been taken by another rider.'
         };
       }
 
       return {
         success: true,
+        walletBalance: data.walletBalance != null ? Number(data.walletBalance) : undefined,
+        freeRidesRemaining: data.freeRidesRemaining != null ? Number(data.freeRidesRemaining) : undefined,
+        chargedAmount: data.chargedAmount != null ? Number(data.chargedAmount) : undefined,
         order: {
           id: data.order.id,
           orderReference: data.order.orderReference,
@@ -634,6 +807,256 @@ export const riderService = {
       return data.signedUrl;
     } catch {
       return null;
+    }
+  },
+
+  /**
+   * Fetch recent wallet transactions for the logged-in rider
+   */
+  async getWalletTransactions(limit = 20): Promise<WalletTransaction[]> {
+    if (!isSupabaseConfigured || !supabase) return [];
+    try {
+      const rider = await this.getCurrentRider();
+      if (!rider) return [];
+
+      const { data, error } = await supabase
+        .from('wallet_transactions')
+        .select('*')
+        .eq('rider_id', rider.id)
+        .order('created_at', { ascending: false })
+        .limit(limit);
+
+      if (error || !data) return [];
+
+      return data.map((tx: Record<string, unknown>) => ({
+        id: tx.id as string,
+        riderId: tx.rider_id as string,
+        orderReference: (tx.order_reference as string) || null,
+        type: tx.type as WalletTransaction['type'],
+        amount: Number(tx.amount) || 0,
+        balanceAfter: Number(tx.balance_after) || 0,
+        paystackReference: (tx.paystack_reference as string) || null,
+        description: (tx.description as string) || '',
+        createdAt: tx.created_at as string
+      }));
+    } catch {
+      return [];
+    }
+  },
+
+  /**
+   * Initialize a Paystack MoMo/Card wallet top-up via secure Edge Function
+   */
+  async initializePaystackTopup(amountGhs: number): Promise<{
+    success: boolean;
+    authorizationUrl?: string;
+    reference?: string;
+    error?: string;
+  }> {
+    if (!isSupabaseConfigured || !supabase) {
+      return { success: false, error: 'Backend is not configured.' };
+    }
+    try {
+      const callbackUrl =
+        typeof window !== 'undefined' ? `${window.location.origin}/rider` : undefined;
+
+      const { data, error } = await supabase.functions.invoke('paystack-initialize', {
+        body: { amount: amountGhs, callbackUrl }
+      });
+
+      if (error) {
+        return { success: false, error: error.message || 'Could not start Paystack payment.' };
+      }
+      if (!data?.success || !data?.authorizationUrl) {
+        return { success: false, error: data?.error || 'Could not start Paystack payment.' };
+      }
+
+      return {
+        success: true,
+        authorizationUrl: data.authorizationUrl,
+        reference: data.reference
+      };
+    } catch (err: unknown) {
+      return { success: false, error: (err as Error).message || 'Payment initialization failed.' };
+    }
+  },
+
+  /**
+   * Verify a completed Paystack top-up and credit the rider's wallet
+   */
+  async verifyPaystackTopup(reference: string): Promise<{
+    success: boolean;
+    amountCredited?: number;
+    walletBalance?: number;
+    error?: string;
+  }> {
+    if (!isSupabaseConfigured || !supabase) {
+      return { success: false, error: 'Backend is not configured.' };
+    }
+    try {
+      const { data, error } = await supabase.functions.invoke('paystack-verify', {
+        body: { reference }
+      });
+
+      if (error) {
+        return { success: false, error: error.message || 'Could not verify payment.' };
+      }
+      if (!data?.success) {
+        return { success: false, error: data?.error || 'Payment verification failed.' };
+      }
+
+      return {
+        success: true,
+        amountCredited: Number(data.amountCredited) || 0,
+        walletBalance: Number(data.walletBalance) || 0
+      };
+    } catch (err: unknown) {
+      return { success: false, error: (err as Error).message || 'Payment verification failed.' };
+    }
+  },
+
+  /**
+   * Submit a refund request for a cancelled / no-show accepted order (reviewed by Support)
+   */
+  async requestOrderRefund(orderId: string, reason: string): Promise<{
+    success: boolean;
+    message?: string;
+    error?: string;
+  }> {
+    if (!isSupabaseConfigured || !supabase) {
+      return { success: false, error: 'Backend is not configured.' };
+    }
+    try {
+      const { data, error } = await supabase.rpc('request_order_refund', {
+        p_order_id: orderId,
+        p_reason: reason.trim()
+      });
+
+      if (error) {
+        return { success: false, error: error.message || 'Could not submit request.' };
+      }
+      if (!data?.success) {
+        return { success: false, error: data?.error || 'Could not submit request.' };
+      }
+
+      return {
+        success: true,
+        message: data.message || 'Request submitted. Support will review and update your wallet.'
+      };
+    } catch (err: unknown) {
+      return { success: false, error: (err as Error).message || 'Could not submit request.' };
+    }
+  },
+
+  /**
+   * Fetch Manna's official MoMo payment details for manual top-up
+   */
+  async getPaymentSettings(): Promise<{
+    momoNumber: string;
+    momoName: string;
+    momoNetwork: string;
+    feePerRide: number;
+  }> {
+    const fallback = {
+      momoNumber: '0245660622',
+      momoName: 'Labour App Enterprise',
+      momoNetwork: 'MTN MoMo',
+      feePerRide: 3
+    };
+    if (!isSupabaseConfigured || !supabase) return fallback;
+    try {
+      const { data, error } = await supabase
+        .from('platform_payment_settings')
+        .select('momo_number, momo_name, momo_network, fee_per_ride')
+        .eq('id', 1)
+        .maybeSingle();
+
+      if (error || !data) return fallback;
+      return {
+        momoNumber: data.momo_number || fallback.momoNumber,
+        momoName: data.momo_name || fallback.momoName,
+        momoNetwork: data.momo_network || fallback.momoNetwork,
+        feePerRide: Number(data.fee_per_ride) || 3
+      };
+    } catch {
+      return fallback;
+    }
+  },
+
+  /**
+   * Fetch the rider's recent manual MoMo top-up requests (pending/approved/rejected)
+   */
+  async getManualTopupRequests(limit = 5): Promise<
+    Array<{
+      id: string;
+      amount: number;
+      momoNetwork: string;
+      transactionId: string;
+      status: 'pending' | 'approved' | 'rejected';
+      createdAt: string;
+    }>
+  > {
+    if (!isSupabaseConfigured || !supabase) return [];
+    try {
+      const rider = await this.getCurrentRider();
+      if (!rider) return [];
+
+      const { data, error } = await supabase
+        .from('manual_topup_requests')
+        .select('id, amount, momo_network, transaction_id, status, created_at')
+        .eq('rider_id', rider.id)
+        .order('created_at', { ascending: false })
+        .limit(limit);
+
+      if (error || !data) return [];
+      return data.map((row: Record<string, unknown>) => ({
+        id: row.id as string,
+        amount: Number(row.amount) || 0,
+        momoNetwork: (row.momo_network as string) || 'MTN MoMo',
+        transactionId: (row.transaction_id as string) || '',
+        status: (row.status as 'pending' | 'approved' | 'rejected') || 'pending',
+        createdAt: row.created_at as string
+      }));
+    } catch {
+      return [];
+    }
+  },
+
+  /**
+   * Submit a manual MoMo top-up with the rider's MoMo SMS Transaction ID
+   */
+  async submitManualTopup(params: {
+    amount: number;
+    momoNetwork: string;
+    senderPhone: string;
+    transactionId: string;
+  }): Promise<{ success: boolean; message?: string; error?: string }> {
+    if (!isSupabaseConfigured || !supabase) {
+      return { success: false, error: 'Backend is not configured.' };
+    }
+    try {
+      const { data, error } = await supabase.rpc('submit_manual_topup_request', {
+        p_amount: params.amount,
+        p_momo_network: params.momoNetwork,
+        p_sender_phone: params.senderPhone,
+        p_transaction_id: params.transactionId
+      });
+
+      if (error) {
+        return { success: false, error: error.message || 'Could not submit top-up.' };
+      }
+      if (!data?.success) {
+        return { success: false, error: data?.error || 'Could not submit top-up.' };
+      }
+
+      return {
+        success: true,
+        message:
+          data.message ||
+          'Top-up submitted! Manna Support will confirm your MoMo payment and credit your wallet shortly.'
+      };
+    } catch (err: unknown) {
+      return { success: false, error: (err as Error).message || 'Could not submit top-up.' };
     }
   }
 };

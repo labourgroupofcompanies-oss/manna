@@ -29,6 +29,7 @@ export interface Order {
   customerPhone: string;
   orderType: OrderType;
   requestDescription?: string | null;
+  pickupStation?: string | null;
   voiceRecordingPath?: string | null;
   customerComment?: string | null;
   voiceNote?: OrderVoiceNote;
@@ -43,6 +44,8 @@ export interface Order {
   motorcycleReg?: string | null;
   motorcycleColour?: string | null;
   riderPhotoUrl?: string | null;
+  riderAverageRating?: number | null;
+  riderTotalRatings?: number | null;
   operatingArea?: string | null;
   acceptedAt?: string | null;
   completedAt?: string | null;
@@ -59,6 +62,7 @@ export interface SubmitOrderPayload {
   customerPhone: string;
   orderType: OrderType;
   orderDescription?: string;
+  pickupStation?: string;
   audioFile?: Blob;
   durationSeconds?: number;
 }

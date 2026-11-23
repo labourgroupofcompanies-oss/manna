@@ -6,6 +6,11 @@
 
 import assert from 'node:assert';
 import { validateGhanaPhone } from '../src/utils/formatters.ts';
+import {
+  validateGuidedTextOrder,
+  formatGuidedOrderDescription,
+  VOICE_GUIDE_CONFIG
+} from '../src/utils/orderGuidance.ts';
 
 console.log('🧪 Starting Okada Book Customer Booking Flow Verification...\n');
 
@@ -70,7 +75,56 @@ test('Text order requires non-empty description', () => {
   assert.strictEqual(invalidPayload.orderDescription.trim().length, 0);
 });
 
-// 4. Zero Admin Links in Public Customer Interfaces
+// 4. Guided Customer Order Validation & Formatting
+test('Guided text order requires both pickup and destination (min 2 chars each)', () => {
+  const missingDest = validateGuidedTextOrder({
+    serviceType: 'ride',
+    pickup: 'Kadjebi Station',
+    destination: ''
+  });
+  assert.strictEqual(missingDest.isValid, false);
+  assert.strictEqual(missingDest.pickupValid, true);
+  assert.strictEqual(missingDest.destinationValid, false);
+
+  const validRide = validateGuidedTextOrder({
+    serviceType: 'ride',
+    pickup: 'Kadjebi Station',
+    destination: 'Market'
+  });
+  assert.strictEqual(validRide.isValid, true);
+});
+
+test('Guided text order formats clear structured message for riders', () => {
+  const rideMsg = formatGuidedOrderDescription({
+    serviceType: 'ride',
+    pickup: 'Kadjebi Station',
+    destination: 'Border',
+    extraNote: 'Wearing blue shirt'
+  });
+  assert.strictEqual(
+    rideMsg,
+    '[Ride] From: Kadjebi Station → To: Border | Note: Wearing blue shirt'
+  );
+
+  const deliveryMsg = formatGuidedOrderDescription({
+    serviceType: 'delivery',
+    pickup: 'Shell Station',
+    destination: 'Hospital Gate'
+  });
+  assert.strictEqual(
+    deliveryMsg,
+    '[Parcel Delivery] Pickup: Shell Station → Drop-off: Hospital Gate'
+  );
+});
+
+test('Voice order guidance provides 3 clear speaking steps for ride and delivery', () => {
+  assert.strictEqual(VOICE_GUIDE_CONFIG.ride.steps.length, 3);
+  assert.strictEqual(VOICE_GUIDE_CONFIG.delivery.steps.length, 3);
+  assert(VOICE_GUIDE_CONFIG.ride.example.length > 20);
+  assert(VOICE_GUIDE_CONFIG.delivery.example.length > 20);
+});
+
+// 5. Zero Admin Links in Public Customer Interfaces
 test('Customer layout navigation contains only Customer and Rider views', () => {
   const publicTabs = ['customer', 'rider'];
   assert(!publicTabs.includes('admin'), 'Customer navigation must NOT include admin links');

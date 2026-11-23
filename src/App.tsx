@@ -38,8 +38,8 @@ const AppRoutes: React.FC = () => {
     return unsubscribe;
   }, []);
 
-  // 1. ADMIN ROUTES (/admin, /admin/login, /admin/dashboard, /admin/orders, /admin/riders, /admin/customers, /admin/settings)
-  if (currentPath.startsWith('/admin')) {
+  // 1. PORTAL ROUTES (/portal, /portal/login, /portal/dashboard, /portal/orders, /portal/riders, /portal/customers, /portal/settings)
+  if (currentPath === '/portal' || currentPath.startsWith('/portal/')) {
     return (
       <Suspense fallback={<RouteLoadingFallback />}>
         <AdminPage />

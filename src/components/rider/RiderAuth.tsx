@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { riderService, pushNotificationService } from '../../services';
-import { validateGhanaPhone } from '../../utils';
+import { validateGhanaPhone, STATIONS_BY_ZONE } from '../../utils';
 import type { RiderProfile, RiderRegistrationPayload, RiderLoginPayload } from '../../types';
 import { LivePhotoGuide } from './LivePhotoGuide';
 import './RiderAuth.css';
@@ -25,7 +25,7 @@ export const RiderAuth: React.FC<RiderAuthProps> = ({ onAuthSuccess }) => {
   const [regBikePlate, setRegBikePlate] = useState('');
   const [regBikeModel, setRegBikeModel] = useState('');
   const [regBikeColour, setRegBikeColour] = useState('');
-  const [regOperatingArea, setRegOperatingArea] = useState('Kadjebi-Town');
+  const [regOperatingArea, setRegOperatingArea] = useState('Main Lorry Station');
   const [profilePhoto, setProfilePhoto] = useState<File | null>(null);
   const [photoPreviewUrl, setPhotoPreviewUrl] = useState<string | null>(null);
   const [showLivePhotoGuide, setShowLivePhotoGuide] = useState(false);
@@ -431,7 +431,7 @@ export const RiderAuth: React.FC<RiderAuthProps> = ({ onAuthSuccess }) => {
 
           <div className="auth-field">
             <label htmlFor="reg-area-select" className="field-label">
-              Primary Area
+              Moto Station
             </label>
             <select
               id="reg-area-select"
@@ -440,9 +440,20 @@ export const RiderAuth: React.FC<RiderAuthProps> = ({ onAuthSuccess }) => {
               className="input-simple"
               style={{ cursor: 'pointer' }}
             >
-              <option value="Kadjebi-Town">Kadjebi-Town</option>
-              <option value="Border">Border</option>
-              <option value="Kadjebi District">Kadjebi District</option>
+              <optgroup label="Kadjebi Town">
+                {STATIONS_BY_ZONE['Kadjebi Town'].map((st) => (
+                  <option key={st.slug} value={st.name}>
+                    {st.name}
+                  </option>
+                ))}
+              </optgroup>
+              <optgroup label="Outside Kadjebi Town">
+                {STATIONS_BY_ZONE['Outside Kadjebi Town'].map((st) => (
+                  <option key={st.slug} value={st.name}>
+                    {st.name}
+                  </option>
+                ))}
+              </optgroup>
             </select>
           </div>
 

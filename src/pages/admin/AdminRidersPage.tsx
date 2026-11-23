@@ -29,15 +29,111 @@ export const AdminRidersPage: React.FC = () => {
   const [submittingAction, setSubmittingAction] = useState(false);
   const [togglingAvailabilityId, setTogglingAvailabilityId] = useState<string | null>(null);
 
+  // Commission Revenue, Manual MoMo Top-Ups, Payment Settings & Refund Requests
+  const [commissionRevenue, setCommissionRevenue] = useState<number>(0);
+  const [pendingTopups, setPendingTopups] = useState<
+    Array<{
+      id: string;
+      riderId: string;
+      riderName: string;
+      riderPhone: string;
+      amount: number;
+      momoNetwork: string;
+      senderPhone: string;
+      transactionId: string;
+      status: 'pending' | 'approved' | 'rejected';
+      createdAt: string;
+    }>
+  >([]);
+  const [reviewingTopupId, setReviewingTopupId] = useState<string | null>(null);
+  const [momoNumber, setMomoNumber] = useState('0245660622');
+  const [momoName, setMomoName] = useState('Labour App Enterprise');
+  const [momoNetwork, setMomoNetwork] = useState('MTN MoMo');
+  const [editingMomo, setEditingMomo] = useState(false);
+  const [savingMomo, setSavingMomo] = useState(false);
+
+  const [refundRequests, setRefundRequests] = useState<
+    Array<{
+      id: string;
+      orderId: string;
+      orderReference: string;
+      riderId: string;
+      riderName: string;
+      riderPhone: string;
+      reason: string;
+      chargeType: 'wallet' | 'free_ride';
+      amount: number;
+      status: 'pending' | 'approved' | 'rejected';
+      createdAt: string;
+    }>
+  >([]);
+  const [reviewingRefundId, setReviewingRefundId] = useState<string | null>(null);
+
   const fetchRiders = useCallback(async () => {
     setLoading(true);
     try {
-      const data = await adminService.getAllRiders();
+      const [data, pendingRefunds, totalRev, topups, paySettings] = await Promise.all([
+        adminService.getAllRiders(),
+        adminService.getPendingRefundRequests(),
+        adminService.getCommissionRevenueTotal(),
+        adminService.getPendingManualTopups(),
+        adminService.getPaymentSettings()
+      ]);
       setRiders(data);
+      setRefundRequests(pendingRefunds);
+      setCommissionRevenue(totalRev);
+      setPendingTopups(topups);
+      setMomoNumber(paySettings.momoNumber);
+      setMomoName(paySettings.momoName);
+      setMomoNetwork(paySettings.momoNetwork);
     } finally {
       setLoading(false);
     }
   }, []);
+
+  const handleReviewTopup = async (requestId: string, decision: 'approved' | 'rejected') => {
+    if (reviewingTopupId) return;
+    setReviewingTopupId(requestId);
+    try {
+      const res = await adminService.reviewManualTopup(requestId, decision);
+      if (res.success) {
+        await fetchRiders();
+      }
+    } finally {
+      setReviewingTopupId(null);
+    }
+  };
+
+  const handleSaveMomoSettings = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!momoNumber.trim() || !momoName.trim() || savingMomo) return;
+    setSavingMomo(true);
+    try {
+      const res = await adminService.updatePaymentSettings({
+        momoNumber: momoNumber.trim(),
+        momoName: momoName.trim(),
+        momoNetwork
+      });
+      if (res.success) {
+        setEditingMomo(false);
+      }
+    } finally {
+      setSavingMomo(false);
+    }
+  };
+
+  const handleReviewRefund = async (refundId: string, decision: 'approved' | 'rejected') => {
+    if (reviewingRefundId) return;
+    setReviewingRefundId(refundId);
+    try {
+      const res = await adminService.reviewRefundRequest(refundId, decision);
+      if (res.success) {
+        await fetchRiders();
+      }
+    } finally {
+      setReviewingRefundId(null);
+    }
+  };
 
   useEffect(() => {
     fetchRiders();
@@ -378,6 +474,215 @@ export const AdminRidersPage: React.FC = () => {
             </div>
           ) : (
             <>
+              {/* Commission Revenue & Pending Refund Requests Bar */}
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  flexWrap: 'wrap',
+                  gap: 12,
+                  padding: '12px 16px',
+                  marginBottom: 14,
+                  background: '#F0FDF4',
+                  border: '1px solid #BBF7D0',
+                  borderRadius: 12
+                }}
+              >
+                <div>
+                  <div style={{ fontSize: '0.75rem', fontWeight: 700, color: '#166534' }}>
+                    Net Rider Commission Revenue (GH₵ 3.00 / Ride)
+                  </div>
+                  <div style={{ fontSize: '1.35rem', fontWeight: 800, color: '#14532D' }}>
+                    GH₵ {commissionRevenue.toFixed(2)}
+                  </div>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+                  <div style={{ fontSize: '0.78rem', color: '#166534' }}>
+                    <strong>Receiving MoMo:</strong> {momoNumber} ({momoName} &bull; {momoNetwork})
+                  </div>
+                  <button
+                    type="button"
+                    className="admin-action-btn"
+                    onClick={() => setEditingMomo((prev) => !prev)}
+                  >
+                    {editingMomo ? 'Close' : 'Edit MoMo'}
+                  </button>
+                </div>
+              </div>
+
+              {editingMomo && (
+                <form
+                  onSubmit={handleSaveMomoSettings}
+                  style={{
+                    marginBottom: 14,
+                    padding: 12,
+                    background: '#F8FAFC',
+                    border: '1px solid #CBD5E1',
+                    borderRadius: 12,
+                    display: 'flex',
+                    flexWrap: 'wrap',
+                    gap: 8,
+                    alignItems: 'center'
+                  }}
+                >
+                  <input
+                    type="text"
+                    value={momoNumber}
+                    onChange={(e) => setMomoNumber(e.target.value)}
+                    placeholder="Your MoMo Number (e.g. 0245660622)"
+                    style={{ padding: '7px 10px', borderRadius: 8, border: '1px solid #CBD5E1', flex: '1 1 160px' }}
+                    required
+                  />
+                  <input
+                    type="text"
+                    value={momoName}
+                    onChange={(e) => setMomoName(e.target.value)}
+                    placeholder="Account Name"
+                    style={{ padding: '7px 10px', borderRadius: 8, border: '1px solid #CBD5E1', flex: '1 1 160px' }}
+                    required
+                  />
+                  <select
+                    value={momoNetwork}
+                    onChange={(e) => setMomoNetwork(e.target.value)}
+                    style={{ padding: '7px 10px', borderRadius: 8, border: '1px solid #CBD5E1' }}
+                  >
+                    <option value="MTN MoMo">MTN MoMo</option>
+                    <option value="Telecel Cash">Telecel Cash</option>
+                    <option value="AT Money">AT Money</option>
+                  </select>
+                  <button type="submit" className="admin-action-btn success" disabled={savingMomo}>
+                    {savingMomo ? 'Saving...' : 'Save MoMo'}
+                  </button>
+                </form>
+              )}
+
+              {pendingTopups.length > 0 && (
+                <div
+                  style={{
+                    marginBottom: 16,
+                    padding: 14,
+                    background: '#EFF6FF',
+                    border: '1px solid #BFDBFE',
+                    borderRadius: 12,
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: 10
+                  }}
+                >
+                  <div style={{ fontWeight: 700, fontSize: '0.88rem', color: '#1E3A8A' }}>
+                    Pending MoMo Wallet Top-Ups ({pendingTopups.length})
+                  </div>
+                  {pendingTopups.map((req) => (
+                    <div
+                      key={req.id}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        flexWrap: 'wrap',
+                        gap: 10,
+                        background: '#FFFFFF',
+                        padding: '10px 12px',
+                        borderRadius: 10,
+                        border: '1px solid #BFDBFE'
+                      }}
+                    >
+                      <div style={{ fontSize: '0.82rem' }}>
+                        <strong>{req.riderName}</strong> ({req.riderPhone}) &bull;{' '}
+                        <strong style={{ color: '#15803D' }}>GH₵ {req.amount.toFixed(2)}</strong> &bull;{' '}
+                        <span>{req.momoNetwork}</span>
+                        <div style={{ color: '#1E3A8A', fontSize: '0.78rem', fontWeight: 700, marginTop: 2 }}>
+                          Tx ID: {req.transactionId}
+                        </div>
+                      </div>
+                      <div style={{ display: 'flex', gap: 8 }}>
+                        <button
+                          type="button"
+                          className="admin-action-btn success"
+                          disabled={reviewingTopupId === req.id}
+                          onClick={() => handleReviewTopup(req.id, 'approved')}
+                        >
+                          {reviewingTopupId === req.id ? '...' : `Approve & Credit GH₵ ${req.amount.toFixed(2)}`}
+                        </button>
+                        <button
+                          type="button"
+                          className="admin-action-btn danger"
+                          disabled={reviewingTopupId === req.id}
+                          onClick={() => handleReviewTopup(req.id, 'rejected')}
+                        >
+                          Reject
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {refundRequests.length > 0 && (
+                <div
+                  style={{
+                    marginBottom: 16,
+                    padding: 14,
+                    background: '#FFFBEB',
+                    border: '1px solid #FDE68A',
+                    borderRadius: 12,
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: 10
+                  }}
+                >
+                  <div style={{ fontWeight: 700, fontSize: '0.88rem', color: '#92400E' }}>
+                    Pending Rider Refund Requests
+                  </div>
+                  {refundRequests.map((req) => (
+                    <div
+                      key={req.id}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        flexWrap: 'wrap',
+                        gap: 10,
+                        background: '#FFFFFF',
+                        padding: '10px 12px',
+                        borderRadius: 10,
+                        border: '1px solid #FDE68A'
+                      }}
+                    >
+                      <div style={{ fontSize: '0.82rem' }}>
+                        <strong>{req.riderName}</strong> ({req.riderPhone}) &bull;{' '}
+                        <strong>{req.orderReference}</strong> &bull;{' '}
+                        <span style={{ color: '#B45309', fontWeight: 700 }}>
+                          {req.chargeType === 'free_ride' ? '1 Free Ride' : `GH₵ ${req.amount.toFixed(2)}`}
+                        </span>
+                        <div style={{ color: '#64748B', fontSize: '0.76rem', marginTop: 2 }}>
+                          Reason: {req.reason}
+                        </div>
+                      </div>
+                      <div style={{ display: 'flex', gap: 8 }}>
+                        <button
+                          type="button"
+                          className="admin-action-btn success"
+                          disabled={reviewingRefundId === req.id}
+                          onClick={() => handleReviewRefund(req.id, 'approved')}
+                        >
+                          {reviewingRefundId === req.id ? '...' : 'Approve Refund'}
+                        </button>
+                        <button
+                          type="button"
+                          className="admin-action-btn danger"
+                          disabled={reviewingRefundId === req.id}
+                          onClick={() => handleReviewRefund(req.id, 'rejected')}
+                        >
+                          Reject
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+
               {/* Desktop Table View (>= 769px) */}
               <div className="admin-desktop-table-view">
                 <div className="admin-table-wrap">
@@ -388,6 +693,8 @@ export const AdminRidersPage: React.FC = () => {
                         <th>Contact Phone</th>
                         <th>Motorcycle Details</th>
                         <th>Operating Area</th>
+                        <th>Rating</th>
+                        <th>Wallet</th>
                         <th>Duty</th>
                         <th>Verification</th>
                         <th>Rides</th>
@@ -462,6 +769,37 @@ export const AdminRidersPage: React.FC = () => {
                             </div>
                           </td>
                           <td>{rider.operatingArea}</td>
+                          <td>
+                            {rider.averageRating != null && (rider.totalRatings || 0) > 0 ? (
+                              <span
+                                style={{
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  gap: 4,
+                                  fontWeight: 700,
+                                  fontSize: '0.82rem',
+                                  color: '#B45309',
+                                  background: '#FEF3C7',
+                                  padding: '3px 8px',
+                                  borderRadius: 999
+                                }}
+                              >
+                                ★ {rider.averageRating.toFixed(1)} ({rider.totalRatings})
+                              </span>
+                            ) : (
+                              <span style={{ fontSize: '0.78rem', color: '#94A3B8' }}>No ratings</span>
+                            )}
+                          </td>
+                          <td>
+                            <div style={{ fontWeight: 700, fontSize: '0.84rem', color: '#0F172A' }}>
+                              GH₵ {(rider.walletBalance ?? 0).toFixed(2)}
+                            </div>
+                            {(rider.freeRidesRemaining ?? 0) > 0 && (
+                              <div style={{ fontSize: '0.72rem', fontWeight: 600, color: '#0B57D0' }}>
+                                {rider.freeRidesRemaining} free left
+                              </div>
+                            )}
+                          </td>
                           <td>
                             <span className={`status-badge ${rider.isAvailable ? 'online' : 'offline'}`}>
                               {rider.isAvailable ? (
@@ -571,6 +909,22 @@ export const AdminRidersPage: React.FC = () => {
                     <div className="admin-mcard-top">
                       <div className="admin-mcard-title-group">
                         <span className="admin-mcard-title">{rider.fullName}</span>
+                        <span
+                          style={{
+                            marginLeft: 8,
+                            fontSize: '0.74rem',
+                            fontWeight: 700,
+                            color: '#B45309',
+                            background: '#FEF3C7',
+                            padding: '2px 7px',
+                            borderRadius: 999
+                          }}
+                        >
+                          ★{' '}
+                          {rider.averageRating != null && (rider.totalRatings || 0) > 0
+                            ? `${rider.averageRating.toFixed(1)} (${rider.totalRatings})`
+                            : 'New'}
+                        </span>
                       </div>
                       <span className={`status-badge ${rider.isAvailable ? 'online' : 'offline'}`}>
                         {rider.isAvailable ? (

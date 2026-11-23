@@ -125,7 +125,8 @@ export const orderService = {
       return this.dispatchToEdgeFunction({
         customerPhone: trimmedPhone,
         orderType: 'text',
-        orderDescription: payload.orderDescription.trim()
+        orderDescription: payload.orderDescription.trim(),
+        pickupStation: payload.pickupStation || null
       });
     }
 
@@ -223,7 +224,8 @@ export const orderService = {
       return this.dispatchToEdgeFunction({
         customerPhone: trimmedPhone,
         orderType: 'voice',
-        voiceRecordingPath: uploadedPath
+        voiceRecordingPath: uploadedPath,
+        pickupStation: payload.pickupStation || null
       });
     }
 
@@ -247,6 +249,7 @@ export const orderService = {
       const customerPhone = String(body.customerPhone || '').trim();
       const orderType = String(body.orderType || 'text') as 'text' | 'voice';
       const orderDescription = (body.orderDescription as string) || null;
+      const pickupStation = (body.pickupStation as string) || null;
       const voiceRecordingPath = (body.voiceRecordingPath as string) || null;
       const createdAt = new Date().toISOString();
 
@@ -259,18 +262,30 @@ export const orderService = {
       this.saveBookingCapabilityToken(orderRef, rawBookingToken);
 
       const generatedOrderId = safeRandomUUID();
-      const { error: dbError } = await supabase
+      const baseInsertPayload: Record<string, unknown> = {
+        id: generatedOrderId,
+        order_reference: orderRef,
+        customer_phone: customerPhone,
+        order_type: orderType,
+        order_description: orderDescription,
+        voice_recording_path: voiceRecordingPath,
+        status: 'pending',
+        booking_token_hash: bookingTokenHash
+      };
+
+      let { error: dbError } = await supabase
         .from('orders')
-        .insert({
-          id: generatedOrderId,
-          order_reference: orderRef,
-          customer_phone: customerPhone,
-          order_type: orderType,
-          order_description: orderDescription,
-          voice_recording_path: voiceRecordingPath,
-          status: 'pending',
-          booking_token_hash: bookingTokenHash
-        });
+        .insert(
+          pickupStation
+            ? { ...baseInsertPayload, pickup_station: pickupStation, dispatch_wave: 1 }
+            : baseInsertPayload
+        );
+
+      // Backwards-compatible fallback if pickup_station column hasn't been migrated yet
+      if (dbError && pickupStation && dbError.message?.toLowerCase().includes('pickup_station')) {
+        const retry = await supabase.from('orders').insert(baseInsertPayload);
+        dbError = retry.error;
+      }
 
       if (!dbError) {
         const orderId = generatedOrderId;
@@ -280,6 +295,7 @@ export const orderService = {
           customerPhone,
           orderType,
           requestDescription: orderDescription,
+          pickupStation,
           voiceRecordingPath,
           status: 'pending',
           bookingToken: rawBookingToken,
@@ -1095,6 +1111,175 @@ export const orderService = {
         supabase.removeChannel(channel).catch(() => {});
       }
     };
+  },
+
+  /**
+   * Fetch an assigned rider's live rating summary (average + count)
+   */
+  async getRiderRatingSummary(
+    riderId: string
+  ): Promise<{ averageRating: number | null; totalRatings: number }> {
+    if (!isSupabaseConfigured || !supabase || !riderId) {
+      return { averageRating: null, totalRatings: 0 };
+    }
+
+    try {
+      const { data, error } = await supabase.rpc('get_rider_rating_summary', {
+        p_rider_id: riderId
+      });
+
+      if (!error && Array.isArray(data) && data.length > 0) {
+        const row = data[0] as { average_rating?: number | string | null; total_ratings?: number };
+        return {
+          averageRating: row.average_rating != null ? Number(row.average_rating) : null,
+          totalRatings: Number(row.total_ratings) || 0
+        };
+      }
+    } catch {
+      // Non-critical fallback
+    }
+
+    return { averageRating: null, totalRatings: 0 };
+  },
+
+  /**
+   * Read locally cached customer rating for a completed order
+   */
+  getLocalOrderRating(orderReference: string): { rating: number; reviewNote?: string } | null {
+    if (typeof window === 'undefined' || !window.localStorage) return null;
+    try {
+      const map = JSON.parse(window.localStorage.getItem('manna_order_ratings') || '{}');
+      return map[orderReference.trim().toUpperCase()] || null;
+    } catch {
+      return null;
+    }
+  },
+
+  /**
+   * Submit a 1-5 star rating for a completed order
+   */
+  async submitOrderRating(params: {
+    orderReference: string;
+    customerPhone: string;
+    rating: number;
+    reviewNote?: string;
+  }): Promise<{ success: boolean; error?: string }> {
+    const cleanRef = params.orderReference.trim().toUpperCase();
+    const ratingVal = Math.min(5, Math.max(1, Math.round(params.rating)));
+    const note = (params.reviewNote || '').trim();
+
+    if (isSupabaseConfigured && supabase) {
+      try {
+        const { data, error } = await supabase.rpc('submit_order_rating', {
+          p_order_reference: cleanRef,
+          p_customer_phone: params.customerPhone,
+          p_rating: ratingVal,
+          p_review_note: note || null
+        });
+
+        if (error) {
+          // If RPC not yet deployed, fall through to local save with warning
+          if (!error.message?.toLowerCase().includes('submit_order_rating')) {
+            return { success: false, error: error.message };
+          }
+        } else if (data && typeof data === 'object' && (data as { success?: boolean }).success === false) {
+          return {
+            success: false,
+            error: (data as { error?: string }).error || 'Could not submit rating.'
+          };
+        }
+      } catch (err: unknown) {
+        return { success: false, error: (err as Error).message || 'Could not submit rating.' };
+      }
+    }
+
+    if (typeof window !== 'undefined' && window.localStorage) {
+      try {
+        const map = JSON.parse(window.localStorage.getItem('manna_order_ratings') || '{}');
+        map[cleanRef] = { rating: ratingVal, reviewNote: note || undefined };
+        window.localStorage.setItem('manna_order_ratings', JSON.stringify(map));
+      } catch {
+        // ignore storage quota errors
+      }
+    }
+
+    return { success: true };
+  },
+
+  /**
+   * Read locally cached customer complaint for a completed order
+   */
+  getLocalOrderComplaint(
+    orderReference: string
+  ): { disputeReference: string; category: string; description: string } | null {
+    if (typeof window === 'undefined' || !window.localStorage) return null;
+    try {
+      const map = JSON.parse(window.localStorage.getItem('manna_order_complaints') || '{}');
+      return map[orderReference.trim().toUpperCase()] || null;
+    } catch {
+      return null;
+    }
+  },
+
+  /**
+   * Submit a customer complaint for a completed order (creates an Admin Dispute)
+   */
+  async submitOrderComplaint(params: {
+    orderReference: string;
+    customerPhone: string;
+    category: string;
+    description: string;
+  }): Promise<{ success: boolean; disputeReference?: string; error?: string }> {
+    const cleanRef = params.orderReference.trim().toUpperCase();
+    const cleanDesc = params.description.trim();
+    if (!cleanDesc) {
+      return { success: false, error: 'Please describe the issue.' };
+    }
+
+    let disputeRef = `DSP-${Math.random().toString(36).substring(2, 8).toUpperCase()}`;
+
+    if (isSupabaseConfigured && supabase) {
+      try {
+        const { data, error } = await supabase.rpc('submit_order_complaint', {
+          p_order_reference: cleanRef,
+          p_customer_phone: params.customerPhone,
+          p_category: params.category,
+          p_description: cleanDesc
+        });
+
+        if (error) {
+          if (!error.message?.toLowerCase().includes('submit_order_complaint')) {
+            return { success: false, error: error.message };
+          }
+        } else if (data && typeof data === 'object') {
+          const resObj = data as { success?: boolean; dispute_reference?: string; error?: string };
+          if (resObj.success === false) {
+            return { success: false, error: resObj.error || 'Could not submit complaint.' };
+          }
+          if (resObj.dispute_reference) {
+            disputeRef = resObj.dispute_reference;
+          }
+        }
+      } catch (err: unknown) {
+        return { success: false, error: (err as Error).message || 'Could not submit complaint.' };
+      }
+    }
+
+    if (typeof window !== 'undefined' && window.localStorage) {
+      try {
+        const map = JSON.parse(window.localStorage.getItem('manna_order_complaints') || '{}');
+        map[cleanRef] = {
+          disputeReference: disputeRef,
+          category: params.category,
+          description: cleanDesc
+        };
+        window.localStorage.setItem('manna_order_complaints', JSON.stringify(map));
+      } catch {
+        // ignore storage quota errors
+      }
+    }
+
+    return { success: true, disputeReference: disputeRef };
   }
 };
 

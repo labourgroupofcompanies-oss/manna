@@ -113,25 +113,29 @@ export async function getFcmToken(): Promise<string | null> {
       if (newPerm !== 'granted') return null;
     }
 
-    // Prefer using the active unified service worker (PWA worker which imported firebase-messaging-sw.js)
+    // Register or reuse active service worker capable of receiving FCM push
     let swRegistration: ServiceWorkerRegistration | undefined;
     if ('serviceWorker' in navigator) {
       try {
-        const readyRegistration = await Promise.race([
-          navigator.serviceWorker.ready,
-          new Promise<undefined>((resolve) => setTimeout(() => resolve(undefined), 1500))
-        ]);
-
-        if (readyRegistration) {
-          swRegistration = readyRegistration;
+        // First check if an active root registration already exists (PWA sw.js imports firebase-messaging-sw.js)
+        const existingReg = await navigator.serviceWorker.getRegistration('/');
+        if (existingReg && existingReg.active) {
+          swRegistration = existingReg;
         } else {
           swRegistration = await navigator.serviceWorker.register('/firebase-messaging-sw.js', {
             scope: '/'
           });
-          await navigator.serviceWorker.ready;
+          // Wait for the service worker to become active before requesting an FCM token
+          const readyReg = await Promise.race([
+            navigator.serviceWorker.ready,
+            new Promise<ServiceWorkerRegistration | undefined>((resolve) =>
+              setTimeout(() => resolve(swRegistration), 3000)
+            )
+          ]);
+          if (readyReg) swRegistration = readyReg;
         }
       } catch (swErr) {
-        console.warn('[FirebaseMessaging] Service worker coordination warning:', swErr);
+        console.warn('[FirebaseMessaging] Service worker registration failed:', swErr);
       }
     }
 
@@ -141,25 +145,23 @@ export async function getFcmToken(): Promise<string | null> {
       tokenOptions.serviceWorkerRegistration = swRegistration;
     }
 
-    // Task 4: Use VAPID public key via VITE_FIREBASE_VAPID_KEY
-    const vapidKey = firebaseConfig.vapidKey || (typeof import.meta !== 'undefined' ? (import.meta as any).env?.VITE_FIREBASE_VAPID_KEY : '');
+    const vapidKey =
+      firebaseConfig.vapidKey ||
+      (typeof import.meta !== 'undefined' ? (import.meta as any).env?.VITE_FIREBASE_VAPID_KEY : '');
     if (vapidKey && typeof vapidKey === 'string' && vapidKey.trim().length > 0) {
       tokenOptions.vapidKey = vapidKey.trim();
     }
 
     const token = await getToken(messaging, tokenOptions);
-    return token || null;
-  } catch (err) {
-    console.warn('[FirebaseMessaging] Unable to get FCM token:', err);
-    // Return a stable fallback device token if live FCM token retrieval fails
-    if (typeof window !== 'undefined') {
-      let localDevToken = localStorage.getItem('okada_dev_fcm_token');
-      if (!localDevToken) {
-        localDevToken = `dev_token_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
-        localStorage.setItem('okada_dev_fcm_token', localDevToken);
-      }
-      return localDevToken;
+    if (!token) {
+      console.warn('[FirebaseMessaging] FCM returned an empty registration token.');
+      return null;
     }
+    return token;
+  } catch (err) {
+    // Do NOT return a fake dev_token_ when Firebase is configured — storing fake tokens in Supabase
+    // causes Firebase HTTP v1 to reject push dispatches and masks real SW/HTTPS/VAPID issues.
+    console.warn('[FirebaseMessaging] Unable to get real FCM token (requires HTTPS + active Service Worker):', err);
     return null;
   }
 }
@@ -227,21 +229,46 @@ export function playNotificationChime(type: 'order' | 'ride' | 'alert' = 'order'
 }
 
 /**
- * Display native browser notification if granted and document is hidden
+ * Display native OS/browser notification if permission is granted.
+ * Prefers ServiceWorkerRegistration.showNotification() because mobile Chrome requires it.
  */
 export function displayNativeNotification(payload: PushNotificationPayload): void {
   if (typeof window === 'undefined' || !('Notification' in window)) return;
   if (Notification.permission !== 'granted') return;
 
-  try {
-    const notification = new Notification(payload.title, {
-      body: payload.body,
-      icon: payload.icon || '/favicon.svg',
-      badge: '/favicon.svg',
-      tag: payload.tag || payload.orderReference || 'kaba-alert',
-      data: payload.data || {}
-    });
+  const options: NotificationOptions = {
+    body: payload.body,
+    icon: payload.icon || '/icons/notification-icon.png',
+    badge: '/icons/notification-badge.png',
+    tag: payload.tag || payload.orderReference || 'manna-alert',
+    data: {
+      click_action: payload.clickAction || '/',
+      ...(payload.data || {})
+    }
+  };
 
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.ready
+      .then((reg) => reg.showNotification(payload.title, options))
+      .catch(() => {
+        try {
+          const notification = new Notification(payload.title, options);
+          notification.onclick = () => {
+            window.focus();
+            if (payload.clickAction && payload.clickAction !== window.location.pathname) {
+              window.location.href = payload.clickAction;
+            }
+            notification.close();
+          };
+        } catch {
+          // Ignore if direct Notification constructor is unsupported on mobile
+        }
+      });
+    return;
+  }
+
+  try {
+    const notification = new Notification(payload.title, options);
     notification.onclick = () => {
       window.focus();
       if (payload.clickAction && payload.clickAction !== window.location.pathname) {
@@ -250,17 +277,7 @@ export function displayNativeNotification(payload: PushNotificationPayload): voi
       notification.close();
     };
   } catch {
-    // Some mobile browsers only allow notifications via serviceWorkerRegistration
-    if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.ready.then((reg) => {
-        reg.showNotification(payload.title, {
-          body: payload.body,
-          icon: payload.icon || '/favicon.svg',
-          badge: '/favicon.svg',
-          data: payload.data || {}
-        });
-      }).catch(() => {});
-    }
+    // Ignore unsupported environments
   }
 }
 
@@ -277,9 +294,9 @@ export function onForegroundMessage(
 
     unsubscribeFn = onMessage(messaging, (payload) => {
       const parsed: PushNotificationPayload = {
-        title: payload.notification?.title || payload.data?.title || 'KABA Ride Alert',
+        title: payload.notification?.title || payload.data?.title || 'Manna',
         body: payload.notification?.body || payload.data?.body || '',
-        icon: payload.notification?.icon || payload.data?.icon || '/favicon.svg',
+        icon: payload.notification?.icon || payload.data?.icon || '/icons/notification-icon.png',
         clickAction: payload.data?.click_action,
         orderReference: payload.data?.orderReference,
         data: payload.data as Record<string, string>

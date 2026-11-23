@@ -15,12 +15,12 @@ export const AdminPage: React.FC = () => {
   const { currentPath } = useRouter();
 
   // 1. Dedicated Admin Login Route
-  if (currentPath === '/admin/login') {
+  if (currentPath === '/portal/login') {
     return <AdminLoginPage />;
   }
 
   // 2. Trips & Analytics Route (/admin/trips and legacy /admin/orders)
-  if (currentPath === '/admin/trips' || currentPath === '/admin/orders') {
+  if (currentPath === '/portal/trips' || currentPath === '/portal/orders') {
     return (
       <AdminProtectedRoute pageTitle="Trips & Analytics">
         {() => <AdminTripsPage />}
@@ -29,7 +29,7 @@ export const AdminPage: React.FC = () => {
   }
 
   // 3. Rider Fleet Route (/admin/riders)
-  if (currentPath === '/admin/riders') {
+  if (currentPath === '/portal/riders') {
     return (
       <AdminProtectedRoute pageTitle="Rider Fleet Management">
         {() => <AdminRidersPage />}
@@ -38,7 +38,7 @@ export const AdminPage: React.FC = () => {
   }
 
   // 4. Dedicated Rider Verification Workspace (/admin/verification)
-  if (currentPath === '/admin/verification') {
+  if (currentPath === '/portal/verification') {
     return (
       <AdminProtectedRoute pageTitle="Rider Verification Workspace">
         {() => <AdminVerificationPage />}
@@ -47,7 +47,7 @@ export const AdminPage: React.FC = () => {
   }
 
   // 5. Customer Directory Route (/admin/customers)
-  if (currentPath === '/admin/customers') {
+  if (currentPath === '/portal/customers') {
     return (
       <AdminProtectedRoute pageTitle="Customer Directory">
         {() => <AdminCustomersPage />}
@@ -56,7 +56,7 @@ export const AdminPage: React.FC = () => {
   }
 
   // 6. Disputes & Complaints Management Route (/admin/disputes)
-  if (currentPath === '/admin/disputes') {
+  if (currentPath === '/portal/disputes') {
     return (
       <AdminProtectedRoute pageTitle="Disputes & Complaints Resolution">
         {() => <AdminDisputesPage />}
@@ -65,7 +65,7 @@ export const AdminPage: React.FC = () => {
   }
 
   // 7. System Metrics & Audit Log Route (/admin/metrics)
-  if (currentPath === '/admin/metrics') {
+  if (currentPath === '/portal/metrics') {
     return (
       <AdminProtectedRoute pageTitle="System Metrics & Telemetry">
         {() => <AdminMetricsPage />}
@@ -74,7 +74,7 @@ export const AdminPage: React.FC = () => {
   }
 
   // 8. Settings & Architecture Route (/admin/settings)
-  if (currentPath === '/admin/settings') {
+  if (currentPath === '/portal/settings') {
     return (
       <AdminProtectedRoute pageTitle="Settings & Access Control">
         {(adminUser) => <AdminSettingsPage adminUser={adminUser} />}

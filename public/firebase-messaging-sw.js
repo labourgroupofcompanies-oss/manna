@@ -10,6 +10,15 @@
 
 self.__WB_DISABLE_DEV_LOGS = true;
 
+// Ensure updated service worker activates promptly for reliable background push
+self.addEventListener('install', () => {
+  self.skipWaiting();
+});
+
+self.addEventListener('activate', (event) => {
+  event.waitUntil(self.clients.claim());
+});
+
 // Give the service worker access to Firebase Messaging compat libraries
 importScripts('https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js');
 importScripts('https://www.gstatic.com/firebasejs/10.14.1/firebase-messaging-compat.js');
@@ -35,24 +44,28 @@ try {
 
     messaging.onBackgroundMessage((payload) => {
       console.log('[firebase-messaging-sw.js] Received background FCM message: ', payload);
-      const notificationTitle = payload.notification?.title || payload.data?.title || 'Manna Ride Alert';
+
+      // When FCM includes a notification block, the browser/Firebase SDK already displays
+      // the system notification automatically — only call showNotification for data-only payloads
+      // to avoid duplicate notifications on mobile devices.
+      if (payload.notification && payload.notification.title) {
+        return;
+      }
+
+      const notificationTitle = payload.data?.title || 'Manna Ride Alert';
       const clickAction = payload.data?.click_action || payload.fcmOptions?.link || '/';
 
       const notificationOptions = {
-        body: payload.notification?.body || payload.data?.body || 'You have a new update.',
-        icon: payload.notification?.icon || payload.data?.icon || '/icons/icon-192x192.png',
-        badge: '/favicon.png',
+        body: payload.data?.body || 'You have a new update.',
+        icon: payload.data?.icon || '/icons/notification-icon.png',
+        badge: '/icons/notification-badge.png',
         tag: payload.data?.orderReference || 'manna-notification',
         data: {
           click_action: clickAction,
           ...payload.data
         },
         vibrate: [200, 100, 200],
-        requireInteraction: true,
-        actions: [
-          { action: 'open', title: 'Open Manna' },
-          { action: 'close', title: 'Dismiss' }
-        ]
+        requireInteraction: true
       };
 
       return self.registration.showNotification(notificationTitle, notificationOptions);
@@ -76,34 +89,30 @@ self.addEventListener('push', (event) => {
     const data = event.data.json();
     const title = data.notification?.title || data.title || 'Manna Ride Alert';
     const body = data.notification?.body || data.body || 'You have a new notification.';
-    const icon = data.notification?.icon || data.icon || '/icons/icon-192x192.png';
+    const icon = data.notification?.icon || data.icon || '/icons/notification-icon.png';
     const clickAction = data.data?.click_action || data.click_action || '/';
 
     const options = {
       body,
       icon,
-      badge: '/favicon.png',
+      badge: '/icons/notification-badge.png',
       tag: data.data?.orderReference || 'manna-notification',
       data: {
         click_action: clickAction,
         ...data.data
       },
       vibrate: [250, 100, 250, 100, 250],
-      requireInteraction: true,
-      actions: [
-        { action: 'open', title: 'Open Manna' },
-        { action: 'close', title: 'Dismiss' }
-      ]
+      requireInteraction: true
     };
 
     event.waitUntil(self.registration.showNotification(title, options));
   } catch {
     const text = event.data.text();
     event.waitUntil(
-      self.registration.showNotification('Manna Notification', {
+      self.registration.showNotification('Manna', {
         body: text,
-        icon: '/icons/icon-192x192.png',
-        badge: '/favicon.png'
+        icon: '/icons/notification-icon.png',
+        badge: '/icons/notification-badge.png'
       })
     );
   }
@@ -117,23 +126,20 @@ self.addEventListener('notificationclick', (event) => {
     return;
   }
 
-  const targetUrl = event.notification.data?.click_action || '/';
+  const rawTargetUrl = event.notification.data?.click_action || '/';
+  const targetUrl = new URL(rawTargetUrl, self.location.origin).href;
 
   event.waitUntil(
     clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
-      // If a tab is already open, focus it and navigate
       for (const client of clientList) {
-        if ('focus' in client) {
-          if (client.url.includes(self.location.origin)) {
-            client.focus();
-            if (targetUrl && targetUrl !== '/') {
-              client.navigate(targetUrl);
-            }
-            return;
+        if ('focus' in client && client.url.startsWith(self.location.origin)) {
+          client.focus();
+          if (rawTargetUrl && rawTargetUrl !== '/') {
+            client.navigate(targetUrl);
           }
+          return;
         }
       }
-      // If no tab is open, open a new window
       if (clients.openWindow) {
         return clients.openWindow(targetUrl);
       }

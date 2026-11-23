@@ -245,37 +245,48 @@
   background-color: #FEF2F2;
 }
 
-/* Row 2: Sleek Duty Status Bar */
+/* Row 2: Clean Executive Duty Status Bar */
 .dash-duty-box.rider-nav-duty-box {
-  margin: 4px 14px 12px 14px;
-  padding: 8px 12px;
-  border-radius: 10px;
+  margin: 0 14px 10px 14px;
+  padding: 9px 14px;
+  border-radius: 12px;
   border: 1px solid #E2E8F0;
-  background-color: #F8FAFC;
+  background-color: #FFFFFF;
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 10px;
-  transition: all 0.2s ease;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04);
+  transition: border-color 0.2s ease, background-color 0.2s ease;
 }
 
 .dash-duty-box.rider-nav-duty-box.online {
-  background-color: #F0FDF4;
+  background-color: #F7FEF9;
   border-color: #BBF7D0;
+}
+
+.dash-duty-box.rider-nav-duty-box.suspended {
+  background-color: #FEF2F2;
+  border-color: #FECACA;
 }
 
 .duty-status-indicator {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
+  min-width: 0;
 }
 
 .status-dot-large {
-  width: 10px;
-  height: 10px;
+  width: 9px;
+  height: 9px;
   border-radius: 50%;
   background-color: #94A3B8;
   flex-shrink: 0;
+}
+
+.status-dot-large.suspended {
+  background-color: #DC2626;
 }
 
 .online .status-dot-large {
@@ -285,7 +296,7 @@
 @keyframes pulse-green {
   0% {
     transform: scale(0.95);
-    box-shadow: 0 0 0 0 rgba(22, 163, 74, 0.7);
+    box-shadow: 0 0 0 0 rgba(22, 163, 74, 0.65);
   }
   70% {
     transform: scale(1.05);
@@ -302,62 +313,105 @@
   background-color: #16A34A;
 }
 
-.duty-text-group {
-  display: flex;
-  flex-direction: column;
-}
-
 .duty-title {
-  font-size: 0.88rem;
+  font-size: 0.85rem;
   font-weight: 700;
   color: #0F172A;
-  line-height: 1.2;
+  letter-spacing: -0.01em;
+  white-space: nowrap;
 }
 
 .online .duty-title {
   color: #15803D;
 }
 
-.duty-subtitle {
-  font-size: 0.72rem;
-  color: #64748B;
-  margin-top: 1px;
+.suspended .duty-title {
+  color: #B91C1C;
 }
 
-.btn-duty-toggle {
-  padding: 6px 14px;
-  border-radius: 8px;
-  font-size: 0.78rem;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.15s ease;
-  border: 1px solid transparent;
+.duty-divider {
+  color: #CBD5E1;
+  font-size: 0.75rem;
   flex-shrink: 0;
 }
 
-.btn-duty-toggle.online {
-  background-color: #FFFFFF;
+.duty-subtitle {
+  font-size: 0.76rem;
+  font-weight: 500;
+  color: #64748B;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Modern Pill Switch Control */
+.btn-duty-switch {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 4px 4px 10px;
+  border-radius: 999px;
+  border: 1px solid #E2E8F0;
+  background: #F8FAFC;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: all 0.2s ease;
+}
+
+.btn-duty-switch:hover:not(:disabled) {
   border-color: #CBD5E1;
-  color: #334155;
+  background: #F1F5F9;
 }
 
-.btn-duty-toggle.online:hover {
-  background-color: #F8FAFC;
-  border-color: #94A3B8;
+.btn-duty-switch.online {
+  border-color: #BBF7D0;
+  background: #FFFFFF;
 }
 
-.btn-duty-toggle.offline {
-  background-color: #063A9B;
-  color: #FFFFFF;
-}
-
-.btn-duty-toggle.offline:hover {
-  background-color: #052F80;
-}
-
-.btn-duty-toggle:disabled {
-  opacity: 0.6;
+.btn-duty-switch:disabled {
+  opacity: 0.55;
   cursor: not-allowed;
+}
+
+.duty-switch-label {
+  font-size: 0.73rem;
+  font-weight: 700;
+  color: #475569;
+  letter-spacing: 0.01em;
+}
+
+.btn-duty-switch.online .duty-switch-label {
+  color: #15803D;
+}
+
+.duty-switch-track {
+  width: 36px;
+  height: 20px;
+  border-radius: 999px;
+  background: #CBD5E1;
+  position: relative;
+  transition: background-color 0.2s ease;
+  display: inline-block;
+}
+
+.btn-duty-switch.online .duty-switch-track {
+  background: #16A34A;
+}
+
+.duty-switch-thumb {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #FFFFFF;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.22);
+  transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.btn-duty-switch.online .duty-switch-thumb {
+  transform: translateX(16px);
 }
 
 /* Row 3: Docked Notification & Feedback Alert Banner */
@@ -844,4 +898,537 @@
 
 .btn-rider-push-toggle:hover:not(:disabled) {
   opacity: 0.9;
+}
+
+/* Rider Station Pill & Weekly Switcher Modal */
+.rider-station-meta-row {
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 2px;
+}
+
+.rider-rating-pill {
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: #B45309;
+  background: #FEF3C7;
+  padding: 2px 7px;
+  border-radius: 999px;
+}
+
+.rider-station-pill {
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: #063A9B;
+  background: #EEF4FF;
+  padding: 2px 7px;
+  border-radius: 999px;
+}
+
+.btn-change-station-link {
+  border: none;
+  background: none;
+  color: #0B57D0;
+  font-size: 0.72rem;
+  font-weight: 700;
+  cursor: pointer;
+  padding: 0;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.station-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.52);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  z-index: 9999;
+}
+
+.station-modal-card {
+  width: 100%;
+  max-width: 380px;
+  background: #FFFFFF;
+  border-radius: 16px;
+  padding: 18px;
+  box-shadow: 0 20px 40px rgba(15, 23, 42, 0.22);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.station-modal-title {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 700;
+  color: #0F172A;
+}
+
+.station-modal-sub {
+  margin: 0;
+  font-size: 0.8rem;
+  color: #64748B;
+  line-height: 1.4;
+}
+
+.station-modal-select {
+  width: 100%;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1.5px solid #CBD5E1;
+  font-size: 0.92rem;
+  font-weight: 600;
+  color: #0F172A;
+  background: #FFFFFF;
+}
+
+.station-modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.btn-station-cancel {
+  padding: 8px 14px;
+  border-radius: 9px;
+  border: 1px solid #CBD5E1;
+  background: #FFFFFF;
+  color: #475569;
+  font-size: 0.84rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.btn-station-save {
+  padding: 8px 16px;
+  border-radius: 9px;
+  border: none;
+  background: #063A9B;
+  color: #FFFFFF;
+  font-size: 0.84rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.btn-station-save:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+/* Prepaid Wallet Bar & Paystack Top-Up Modal */
+.rider-wallet-bar {
+  margin: 0 14px 10px 14px;
+  padding: 8px 12px;
+  border-radius: 12px;
+  background: #F8FAFC;
+  border: 1px solid #E2E8F0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.wallet-bar-info {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.wallet-free-badge {
+  background: #DBEAFE;
+  color: #1E40AF;
+  font-size: 0.76rem;
+  font-weight: 800;
+  padding: 3px 9px;
+  border-radius: 999px;
+}
+
+.wallet-balance-amount {
+  font-size: 0.92rem;
+  font-weight: 800;
+  color: #0F172A;
+}
+
+.wallet-balance-amount.low {
+  color: #DC2626;
+}
+
+.wallet-balance-sub {
+  font-size: 0.74rem;
+  font-weight: 500;
+  color: #64748B;
+}
+
+.btn-wallet-topup {
+  background: #063A9B;
+  color: #FFFFFF;
+  border: none;
+  border-radius: 999px;
+  padding: 6px 13px;
+  font-size: 0.76rem;
+  font-weight: 700;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.btn-wallet-topup:hover {
+  background: #052F80;
+}
+
+.wallet-modal-card {
+  max-height: 88vh;
+  overflow-y: auto;
+}
+
+.wallet-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.btn-wallet-close {
+  border: none;
+  background: #F1F5F9;
+  color: #475569;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+
+.wallet-summary-box {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: linear-gradient(135deg, #063A9B 0%, #0B57D0 100%);
+  color: #FFFFFF;
+  padding: 14px 16px;
+  border-radius: 12px;
+}
+
+.wallet-summary-label {
+  font-size: 0.72rem;
+  opacity: 0.85;
+}
+
+.wallet-summary-value {
+  font-size: 1.4rem;
+  font-weight: 800;
+  margin-top: 2px;
+}
+
+.wallet-summary-right {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+}
+
+.wallet-fee-tag {
+  font-size: 0.72rem;
+  font-weight: 700;
+  background: rgba(255, 255, 255, 0.18);
+  padding: 3px 8px;
+  border-radius: 999px;
+}
+
+.wallet-free-pill {
+  font-size: 0.7rem;
+  font-weight: 700;
+  background: #FEF3C7;
+  color: #92400E;
+  padding: 2px 8px;
+  border-radius: 999px;
+}
+
+.wallet-topup-form {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.wallet-section-label {
+  font-size: 0.76rem;
+  font-weight: 700;
+  color: #334155;
+}
+
+.wallet-preset-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+
+.wallet-preset-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 9px 6px;
+  border-radius: 10px;
+  border: 1.5px solid #CBD5E1;
+  background: #F8FAFC;
+  cursor: pointer;
+}
+
+.wallet-preset-btn strong {
+  font-size: 0.88rem;
+  color: #0F172A;
+}
+
+.wallet-preset-btn span {
+  font-size: 0.7rem;
+  color: #64748B;
+}
+
+.wallet-preset-btn.active {
+  border-color: #063A9B;
+  background: #EEF4FF;
+}
+
+.wallet-preset-btn.active strong {
+  color: #063A9B;
+}
+
+.wallet-custom-row {
+  display: flex;
+  align-items: center;
+  border: 1.5px solid #CBD5E1;
+  border-radius: 10px;
+  padding: 0 12px;
+  background: #FFFFFF;
+}
+
+.wallet-currency-prefix {
+  font-weight: 700;
+  color: #475569;
+  font-size: 0.88rem;
+  margin-right: 6px;
+}
+
+.wallet-custom-input {
+  width: 100%;
+  border: none;
+  outline: none;
+  padding: 10px 0;
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: #0F172A;
+}
+
+.btn-paystack-submit {
+  width: 100%;
+  padding: 11px 16px;
+  border-radius: 10px;
+  border: none;
+  background: #16A34A;
+  color: #FFFFFF;
+  font-size: 0.9rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.btn-paystack-submit:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.wallet-history-section {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  border-top: 1px solid #E2E8F0;
+  padding-top: 10px;
+}
+
+.wallet-empty-text {
+  margin: 0;
+  font-size: 0.78rem;
+  color: #94A3B8;
+}
+
+.wallet-tx-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.wallet-tx-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 6px 8px;
+  background: #F8FAFC;
+  border-radius: 8px;
+}
+
+.wallet-tx-desc {
+  display: flex;
+  flex-direction: column;
+  font-size: 0.76rem;
+  color: #1E293B;
+}
+
+.wallet-tx-desc small {
+  font-size: 0.68rem;
+  color: #64748B;
+}
+
+.wallet-tx-amount {
+  font-size: 0.78rem;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.wallet-tx-amount.credit {
+  color: #15803D;
+}
+
+.wallet-tx-amount.debit {
+  color: #DC2626;
+}
+
+.wallet-tx-amount.free {
+  color: #0B57D0;
+}
+
+.btn-request-refund-link {
+  margin-top: 8px;
+  width: 100%;
+  background: none;
+  border: none;
+  color: #64748B;
+  font-size: 0.76rem;
+  font-weight: 600;
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  padding: 4px;
+}
+
+.btn-request-refund-link:hover {
+  color: #DC2626;
+}
+
+/* Manual MoMo Top-Up Card */
+.momo-receiver-card {
+  background: #FFFBEB;
+  border: 1.5px solid #FCD34D;
+  border-radius: 12px;
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.momo-receiver-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.momo-step-tag {
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  color: #92400E;
+}
+
+.momo-network-pill {
+  font-size: 0.7rem;
+  font-weight: 700;
+  background: #FEF3C7;
+  color: #92400E;
+  padding: 2px 8px;
+  border-radius: 999px;
+}
+
+.momo-number-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.momo-number-value {
+  font-size: 1.15rem;
+  font-weight: 800;
+  color: #0F172A;
+  letter-spacing: 0.02em;
+}
+
+.momo-account-name {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: #475569;
+}
+
+.btn-copy-momo {
+  border: 1.5px solid #F59E0B;
+  background: #FFFFFF;
+  color: #92400E;
+  padding: 6px 12px;
+  border-radius: 8px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.momo-inputs-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.momo-txid-input {
+  width: 100%;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1.5px solid #CBD5E1;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #0F172A;
+  background: #FFFFFF;
+  outline: none;
+}
+
+.momo-txid-input:focus {
+  border-color: #063A9B;
+}
+
+.wallet-pending-box {
+  background: #EFF6FF;
+  border: 1px solid #BFDBFE;
+  border-radius: 10px;
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.wallet-pending-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 0.78rem;
+  color: #1E3A8A;
+}
+
+.wallet-pending-pill {
+  background: #DBEAFE;
+  color: #1D4ED8;
+  font-size: 0.7rem;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 999px;
 }

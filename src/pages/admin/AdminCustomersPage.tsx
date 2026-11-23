@@ -223,7 +223,7 @@ export const AdminCustomersPage: React.FC = () => {
                             <button
                               type="button"
                               className="admin-action-btn primary"
-                              onClick={() => navigate('/admin/trips')}
+                              onClick={() => navigate('/portal/trips')}
                               style={{ padding: '4px 10px', fontSize: '0.75rem' }}
                             >
                               View Trips <i className="fa-solid fa-chevron-right" style={{ marginLeft: 4 }} />
@@ -299,7 +299,7 @@ export const AdminCustomersPage: React.FC = () => {
                         type="button"
                         className="admin-action-btn primary"
                         style={{ width: '100%', minHeight: 44 }}
-                        onClick={() => navigate('/admin/trips')}
+                        onClick={() => navigate('/portal/trips')}
                       >
                         <i className="fa-solid fa-route" style={{ marginRight: 6 }} />
                         View Customer Trips

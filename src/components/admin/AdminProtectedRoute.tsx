@@ -54,7 +54,7 @@ export const AdminProtectedRoute: React.FC<AdminProtectedRouteProps> = ({ childr
 
         // Completely unauthenticated
         setStatus('unauthenticated');
-        navigate('/admin/login', { replace: true });
+        navigate('/portal/login', { replace: true });
       } catch (err: unknown) {
         if (!isMounted) return;
         const e = err as Error;
@@ -112,7 +112,7 @@ export const AdminProtectedRoute: React.FC<AdminProtectedRouteProps> = ({ childr
               fullWidth
               onClick={async () => {
                 await adminService.logoutAdmin();
-                navigate('/admin/login', { replace: true });
+                navigate('/portal/login', { replace: true });
               }}
             >
               Sign In as Administrator
@@ -159,7 +159,7 @@ export const AdminProtectedRoute: React.FC<AdminProtectedRouteProps> = ({ childr
               variant="outline"
               fullWidth
               onClick={() => {
-                navigate('/admin/login');
+                navigate('/portal/login');
               }}
             >
               Go to Admin Login
