@@ -1432,3 +1432,168 @@
   padding: 2px 8px;
   border-radius: 999px;
 }
+
+/* ==========================================================================
+   Tidied Executive 2-Row Rider Header Controls
+   ========================================================================== */
+.meta-star {
+  color: #F59E0B;
+  font-weight: 800;
+}
+
+.rider-menu-wrap {
+  position: relative;
+}
+
+.btn-rider-menu {
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  border: 1px solid #E2E8F0;
+  background: #F8FAFC;
+  color: #334155;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  position: relative;
+  transition: background-color 0.15s ease;
+}
+
+.btn-rider-menu:hover {
+  background: #F1F5F9;
+}
+
+.menu-alert-dot {
+  position: absolute;
+  top: 5px;
+  right: 5px;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #F59E0B;
+  border: 1.5px solid #FFFFFF;
+}
+
+.rider-menu-dropdown {
+  position: absolute;
+  top: 40px;
+  right: 0;
+  min-width: 175px;
+  background: #FFFFFF;
+  border: 1px solid #E2E8F0;
+  border-radius: 12px;
+  box-shadow: 0 12px 28px rgba(15, 23, 42, 0.14);
+  padding: 6px;
+  z-index: 100;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.rider-menu-item {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 9px 10px;
+  border: none;
+  background: transparent;
+  border-radius: 8px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: #1E293B;
+  cursor: pointer;
+  text-align: left;
+}
+
+.rider-menu-item:hover {
+  background: #F1F5F9;
+}
+
+.rider-menu-item.danger {
+  color: #DC2626;
+}
+
+.rider-menu-item.danger:hover {
+  background: #FEF2F2;
+}
+
+.rider-menu-divider {
+  height: 1px;
+  background: #E2E8F0;
+  margin: 4px 0;
+}
+
+/* Row 2: Compact Side-by-Side Station & Wallet Strip */
+.rider-quick-strip {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  padding: 2px 14px 10px 14px;
+}
+
+.rider-strip-tile {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 8px 10px;
+  background: #F8FAFC;
+  border: 1px solid #E2E8F0;
+  border-radius: 11px;
+  text-align: left;
+  cursor: pointer;
+  min-width: 0;
+  transition: border-color 0.15s ease, background-color 0.15s ease;
+}
+
+.rider-strip-tile:hover {
+  border-color: #BFDBFE;
+  background: #F4F8FF;
+}
+
+.rider-strip-tile.wallet-tile.low {
+  background: #FEF2F2;
+  border-color: #FECACA;
+}
+
+.strip-tile-label {
+  font-size: 0.66rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #64748B;
+}
+
+.strip-tile-value {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 4px;
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: #0F172A;
+  min-width: 0;
+}
+
+.strip-truncate {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.strip-chevron {
+  color: #64748B;
+  font-size: 0.78rem;
+  flex-shrink: 0;
+}
+
+.strip-topup-tag {
+  font-size: 0.68rem;
+  font-weight: 700;
+  color: #063A9B;
+  background: #DBEAFE;
+  padding: 2px 6px;
+  border-radius: 999px;
+  flex-shrink: 0;
+}

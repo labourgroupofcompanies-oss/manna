@@ -557,23 +557,38 @@ export const AdminRidersPage: React.FC = () => {
                 </form>
               )}
 
-              {pendingTopups.length > 0 && (
-                <div
-                  style={{
-                    marginBottom: 16,
-                    padding: 14,
-                    background: '#EFF6FF',
-                    border: '1px solid #BFDBFE',
-                    borderRadius: 12,
-                    display: 'flex',
-                    flexDirection: 'column',
-                    gap: 10
-                  }}
-                >
+              <div
+                style={{
+                  marginBottom: 16,
+                  padding: 14,
+                  background: '#EFF6FF',
+                  border: '1px solid #BFDBFE',
+                  borderRadius: 12,
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: 10
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
                   <div style={{ fontWeight: 700, fontSize: '0.88rem', color: '#1E3A8A' }}>
-                    Pending MoMo Wallet Top-Ups ({pendingTopups.length})
+                    MoMo Wallet Top-Up Approvals ({pendingTopups.length} Pending)
                   </div>
-                  {pendingTopups.map((req) => (
+                  <button
+                    type="button"
+                    className="admin-action-btn"
+                    onClick={handleRefresh}
+                    disabled={refreshing}
+                  >
+                    {refreshing ? 'Refreshing...' : 'Refresh'}
+                  </button>
+                </div>
+
+                {pendingTopups.length === 0 ? (
+                  <div style={{ fontSize: '0.8rem', color: '#475569' }}>
+                    No pending MoMo top-up requests right now. When a rider submits a MoMo Transaction ID, it will appear here for 1-click approval.
+                  </div>
+                ) : (
+                  pendingTopups.map((req) => (
                     <div
                       key={req.id}
                       style={{
@@ -615,9 +630,9 @@ export const AdminRidersPage: React.FC = () => {
                         </button>
                       </div>
                     </div>
-                  ))}
-                </div>
-              )}
+                  ))
+                )}
+              </div>
 
               {refundRequests.length > 0 && (
                 <div

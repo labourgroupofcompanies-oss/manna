@@ -155,7 +155,7 @@ export const AdminOverviewPage: React.FC = () => {
 
         <Link href="/portal/riders" className="admin-quick-action-pill">
           <i className="fa-solid fa-motorcycle" />
-          <span>Rider Fleet</span>
+          <span>Rider Fleet &amp; MoMo Top-Ups</span>
         </Link>
       </div>
 

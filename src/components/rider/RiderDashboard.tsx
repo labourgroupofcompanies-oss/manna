@@ -49,6 +49,9 @@ export const RiderDashboard: React.FC<RiderDashboardProps> = ({ rider, onLogout 
   const [walletTransactions, setWalletTransactions] = useState<WalletTransaction[]>([]);
   const [loadingTransactions, setLoadingTransactions] = useState(false);
 
+  // Header utility menu popover (Sound test, Push toggle, Sign Out)
+  const [menuOpen, setMenuOpen] = useState(false);
+
   // Support Refund Request modal (no mention of admin)
   const [refundOrder, setRefundOrder] = useState<ActiveRiderOrder | null>(null);
   const [refundReason, setRefundReason] = useState('Customer did not answer phone');
@@ -606,9 +609,9 @@ export const RiderDashboard: React.FC<RiderDashboardProps> = ({ rider, onLogout 
 
   return (
     <div className="rider-dash-container">
-      {/* 1. Unified Sticky Rider Navigation Header */}
+      {/* 1. Sleek 2-Row Executive Rider Header */}
       <header className="rider-unified-navbar">
-        {/* Profile Card & Action Toolbar */}
+        {/* Row 1: Identity + Online Switch + Compact Menu */}
         <div className="dash-profile-card rider-nav-primary">
           <div className="dash-rider-info">
             <div className="rider-nav-avatar-wrap">
@@ -618,170 +621,154 @@ export const RiderDashboard: React.FC<RiderDashboardProps> = ({ rider, onLogout 
                 <div className="dash-avatar-initials">{riderInitials}</div>
               )}
               <span
-                className={`rider-avatar-status-pip ${verificationStatus === 'suspended' ? 'suspended' : isAvailable ? 'online' : 'offline'}`}
-                title={verificationStatus === 'suspended' ? 'Suspended' : isAvailable ? 'Online' : 'Offline'}
+                className={`rider-avatar-status-pip ${
+                  verificationStatus === 'suspended' ? 'suspended' : isAvailable ? 'online' : 'offline'
+                }`}
               />
             </div>
 
             <div className="dash-rider-details">
               <div className="rider-nav-name-row">
                 <span className="dash-rider-name">{rider.fullName}</span>
-                {verificationStatus === 'approved' ? (
-                  <span className="rider-status-pill verified" title="Verified Rider Partner">
-                    <i className="fa-solid fa-circle-check" /> Verified
-                  </span>
-                ) : verificationStatus === 'suspended' ? (
-                  <span className="rider-status-pill suspended" title="Account Suspended">
-                    <i className="fa-solid fa-ban" /> Suspended
-                  </span>
-                ) : (
-                  <span className="rider-status-pill active" title="Active Partner">
-                    <i className="fa-solid fa-circle-check" /> Active
-                  </span>
+                {verificationStatus === 'suspended' && (
+                  <span className="rider-status-pill suspended">Restricted</span>
                 )}
               </div>
               <span className="dash-rider-meta">
-                {rider.motorcycleModel} &bull; {rider.motorcycleRegistration}
+                <span className="meta-star">★</span>{' '}
+                {rider.averageRating != null && (rider.totalRatings || 0) > 0
+                  ? rider.averageRating.toFixed(1)
+                  : 'New'}{' '}
+                &bull; {rider.motorcycleRegistration}
               </span>
-              <div className="rider-station-meta-row">
-                <span className="rider-rating-pill" title="Your customer rating">
-                  ★{' '}
-                  {rider.averageRating != null && (rider.totalRatings || 0) > 0
-                    ? `${rider.averageRating.toFixed(1)} (${rider.totalRatings})`
-                    : 'New'}
-                </span>
-                <span className="rider-station-pill">📍 {currentStation}</span>
-                <button
-                  type="button"
-                  className="btn-change-station-link"
-                  onClick={() => {
-                    setSelectedNewStation(currentStation);
-                    setStationModalOpen(true);
-                  }}
-                >
-                  Change
-                </button>
-              </div>
             </div>
           </div>
 
           <div className="rider-nav-quick-actions">
-            {/* Quick sound alert test */}
+            {/* Compact Online/Offline Switch */}
             <button
               type="button"
-              className="btn-nav-sound btn-rider-sound-test"
-              onClick={handleTestAlertSound}
-              title="Test notification alert chime sound"
-              aria-label="Test Alert Sound"
+              role="switch"
+              aria-checked={verificationStatus !== 'suspended' && isAvailable}
+              aria-label={isAvailable ? 'Go Offline' : 'Go Online'}
+              disabled={togglingAvailability || verificationStatus === 'suspended'}
+              onClick={handleToggleAvailability}
+              className={`btn-duty-switch ${
+                verificationStatus === 'suspended' ? 'suspended' : isAvailable ? 'online' : 'offline'
+              }`}
             >
-              <span>🔊</span>
+              <span className="duty-switch-label">
+                {verificationStatus === 'suspended'
+                  ? 'Locked'
+                  : togglingAvailability
+                  ? '...'
+                  : isAvailable
+                  ? 'Online'
+                  : 'Offline'}
+              </span>
+              <span className="duty-switch-track" aria-hidden="true">
+                <span className="duty-switch-thumb" />
+              </span>
             </button>
 
-            {/* Quick push notification toggle */}
-            <button
-              type="button"
-              className={`btn-nav-push btn-rider-push-toggle ${notificationsEnabled ? 'active' : ''}`}
-              onClick={handleTogglePushNotifications}
-              disabled={registeringPush}
-              title={notificationsEnabled ? "Push notifications active (Tap to disable)" : "Push notifications disabled (Tap to enable)"}
-              aria-label="Toggle Push Notifications"
-            >
-              <span className="nav-bell-icon">{registeringPush ? '⏳' : notificationsEnabled ? '🔔' : '🔕'}</span>
-              <span className={`nav-bell-pip ${notificationsEnabled ? 'on' : 'off'}`} />
-            </button>
+            {/* Clean Overflow Menu (Alerts, Sound Test, Sign Out) */}
+            <div className="rider-menu-wrap">
+              <button
+                type="button"
+                className="btn-rider-menu"
+                onClick={() => setMenuOpen((prev) => !prev)}
+                aria-expanded={menuOpen}
+                aria-label="Rider menu"
+              >
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                  <circle cx="12" cy="5" r="2" />
+                  <circle cx="12" cy="12" r="2" />
+                  <circle cx="12" cy="19" r="2" />
+                </svg>
+                {!notificationsEnabled && <span className="menu-alert-dot" aria-hidden="true" />}
+              </button>
 
-            {/* Sign Out Button */}
-            <button
-              type="button"
-              onClick={onLogout}
-              className="btn-dash-logout btn-nav-logout"
-              title="Sign Out of Rider Portal"
-            >
-              Sign Out
-            </button>
+              {menuOpen && (
+                <div className="rider-menu-dropdown" role="menu">
+                  <button
+                    type="button"
+                    role="menuitem"
+                    className="rider-menu-item"
+                    onClick={() => {
+                      handleTogglePushNotifications();
+                      setMenuOpen(false);
+                    }}
+                    disabled={registeringPush}
+                  >
+                    <span>{notificationsEnabled ? '🔔' : '🔕'}</span>
+                    <span>{notificationsEnabled ? 'Alerts: On' : 'Enable Alerts'}</span>
+                  </button>
+                  <button
+                    type="button"
+                    role="menuitem"
+                    className="rider-menu-item"
+                    onClick={() => {
+                      handleTestAlertSound();
+                      setMenuOpen(false);
+                    }}
+                  >
+                    <span>🔊</span>
+                    <span>Test Alert Sound</span>
+                  </button>
+                  <div className="rider-menu-divider" />
+                  <button
+                    type="button"
+                    role="menuitem"
+                    className="rider-menu-item danger"
+                    onClick={() => {
+                      setMenuOpen(false);
+                      onLogout();
+                    }}
+                  >
+                    <span>↪</span>
+                    <span>Sign Out</span>
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
         </div>
 
-        {/* Clean Executive Duty Status Bar */}
-        <div
-          className={`dash-duty-box rider-nav-duty-box ${
-            verificationStatus === 'suspended' ? 'suspended' : isAvailable ? 'online' : 'offline'
-          }`}
-        >
-          <div className="duty-status-indicator">
-            <span
-              className={`status-dot-large ${
-                verificationStatus === 'suspended' ? 'suspended' : isAvailable ? 'pulsing' : ''
-              }`}
-            />
-            <span className="duty-title">
-              {verificationStatus === 'suspended'
-                ? 'Account Suspended'
-                : isAvailable
-                ? 'Online'
-                : 'Offline'}
-            </span>
-            <span className="duty-divider" aria-hidden="true">&bull;</span>
-            <span className="duty-subtitle">
-              {verificationStatus === 'suspended'
-                ? 'Contact support'
-                : isAvailable
-                ? 'Receiving orders'
-                : 'Not receiving orders'}
-            </span>
-          </div>
-
+        {/* Row 2: Clean 2-Tile Strip (Station + Wallet) */}
+        <div className="rider-quick-strip">
           <button
             type="button"
-            role="switch"
-            aria-checked={verificationStatus !== 'suspended' && isAvailable}
-            aria-label={isAvailable ? 'Go Offline' : 'Go Online'}
-            disabled={togglingAvailability || verificationStatus === 'suspended'}
-            onClick={handleToggleAvailability}
-            className={`btn-duty-switch ${
-              verificationStatus === 'suspended' ? 'suspended' : isAvailable ? 'online' : 'offline'
-            }`}
+            className="rider-strip-tile"
+            onClick={() => {
+              setSelectedNewStation(currentStation);
+              setStationModalOpen(true);
+            }}
           >
-            <span className="duty-switch-label">
-              {verificationStatus === 'suspended'
-                ? 'Locked'
-                : togglingAvailability
-                ? '...'
-                : isAvailable
-                ? 'Online'
-                : 'Offline'}
-            </span>
-            <span className="duty-switch-track" aria-hidden="true">
-              <span className="duty-switch-thumb" />
+            <span className="strip-tile-label">Station</span>
+            <span className="strip-tile-value">
+              <span className="strip-truncate">📍 {currentStation}</span>
+              <span className="strip-chevron">▾</span>
             </span>
           </button>
-        </div>
 
-        {/* Prepaid Wallet Bar (2 Free Rides + GH₵ 3.00 / Ride via Paystack) */}
-        <div className="rider-wallet-bar">
-          <div className="wallet-bar-info">
-            {freeRidesRemaining > 0 ? (
-              <>
-                <span className="wallet-free-badge">🎁 {freeRidesRemaining} Free {freeRidesRemaining === 1 ? 'Ride' : 'Rides'}</span>
-                <span className="wallet-balance-sub">Balance: GH₵ {walletBalance.toFixed(2)}</span>
-              </>
-            ) : (
-              <>
-                <span className={`wallet-balance-amount ${walletBalance < 3 ? 'low' : ''}`}>
-                  GH₵ {walletBalance.toFixed(2)}
-                </span>
-                <span className="wallet-balance-sub">
-                  {walletBalance < 3 ? 'Top up needed (GH₵ 3/ride)' : `${Math.floor(walletBalance / 3)} rides left`}
-                </span>
-              </>
-            )}
-          </div>
           <button
             type="button"
-            className="btn-wallet-topup"
+            className={`rider-strip-tile wallet-tile ${
+              freeRidesRemaining === 0 && walletBalance < 3 ? 'low' : ''
+            }`}
             onClick={handleOpenWallet}
           >
-            + Top Up
+            <span className="strip-tile-label">
+              {freeRidesRemaining > 0 ? 'Welcome Bonus' : 'Wallet'}
+            </span>
+            <span className="strip-tile-value">
+              <span>
+                {freeRidesRemaining > 0
+                  ? `🎁 ${freeRidesRemaining} Free`
+                  : `GH₵ ${walletBalance.toFixed(2)}`}
+              </span>
+              <span className="strip-topup-tag">+ Top Up</span>
+            </span>
           </button>
         </div>
 
